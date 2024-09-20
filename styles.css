@@ -1,0 +1,72 @@
+/* General styles */
+body {
+    margin: 0;
+    display: flex;
+    height: 100vh; /* Full viewport height */
+}
+
+/* Left-side panel */
+.side-panel {
+    width: 150px;
+    background-color: #f0f0f0;
+    height: 100%; /* Full height */
+    box-sizing: border-box;
+    border-right: 2px solid #ccc;
+}
+
+/* Container for the camera feeds and their duplicates, arranged side-by-side */
+.camera-row {
+    display: flex;
+    flex-grow: 1; /* Allows cameras to take up the remaining space */
+    box-sizing: border-box;
+    padding-left : 10px ;
+
+}
+
+/* Individual camera and its duplicate stacked vertically */
+.camera-container {
+    display: flex;
+    flex-direction: column; /* Stack original and duplicate vertically */
+    align-items: center;
+}
+
+/* Container for the duplicate camera feed and its canvas */
+.duplicate-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px; /* Add space between original feed and duplicate */
+}
+
+/* Style for live camera feeds */
+img {
+    width: auto;
+    height: 40vh; /* Set height to be less than half of the window */
+}
+
+/* Style for canvas overlays on duplicate feeds */
+canvas {
+    position: absolute; /* Overlay canvas on top of the corresponding video feed */
+    top: 0;
+    left: 0;
+    width: auto;
+    height: 40vh; /* Match the height of the video feed */
+    pointer-events: none; /* Ensure canvas doesn't block interactions with the image */
+}
+
+/* Fixed white canvas in the top-right corner */
+#whiteCanvas {
+    position: relative;
+    width: 300px;
+    height: 100px;
+    background-color: white; /* Make the canvas background white */
+    border: 1px solid black; /* Optional: Add a border to the canvas */
+    z-index: 1000; /* Ensure it's on top of other elements */
+}
+
+#whiteCanvasContainer {
+    top: 0;
+    right: 0;
+    position: fixed;
+}

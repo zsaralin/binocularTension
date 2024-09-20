@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Body Tracking from Two Cameras</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script src="detection.js" defer></script> <!-- Link to external JavaScript file -->
+    <link rel="stylesheet" href="styles.css"> <!-- Link to external CSS file -->
+</head>
+<body>
+
+<!-- Left-side panel -->
+<div class="side-panel">
+</div>
+
+<!-- Main content -->
+<div class="camera-row">
+    <!-- Camera 0 with its duplicate below -->
+    <div class="camera-container">
+        <img id="videoFeed0" crossorigin="anonymous" src="http://localhost:5000/video_feed_0" alt="Camera 0 Feed">
+        <div class="duplicate-container">
+            <img id="videoFeed0_duplicate" crossorigin="anonymous" src="http://localhost:5000/video_feed_0" alt="Camera 0 Duplicate Feed">
+            <canvas id="canvas0_duplicate"></canvas> <!-- Overlay canvas for Camera 0 duplicate -->
+        </div>
+    </div>
+
+    <!-- Camera 1 with its duplicate below -->
+    <div class="camera-container">
+        <img id="videoFeed1" crossorigin="anonymous" src="http://localhost:5000/video_feed_1" alt="Camera 1 Feed">
+        <div class="duplicate-container">
+            <img id="videoFeed1_duplicate" crossorigin="anonymous" src="http://localhost:5000/video_feed_1" alt="Camera 1 Duplicate Feed">
+            <canvas id="canvas1_duplicate"></canvas> <!-- Overlay canvas for Camera 1 duplicate -->
+        </div>
+    </div>
+</div>
+
+<!-- White canvas fixed to the top-right corner -->
+<div id="whiteCanvasContainer">
+    <canvas id="whiteCanvas"></canvas>
+</div>
+
+</body>
+</html>
