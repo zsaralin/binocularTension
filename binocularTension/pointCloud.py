@@ -1,33 +1,18 @@
-# License: Apache 2.0. See LICENSE file in root directory.
-# Copyright(c) 2015-2017 Intel Corporation. All Rights Reserved.
-
-"""
-OpenCV and Numpy Point cloud Software Renderer
-
-This sample is mostly for demonstration and educational purposes.
-It really doesn't offer the quality or performance that can be
-achieved with hardware acceleration.
-
-Usage:
-------
-Mouse:
-    Drag with left button to rotate around pivot (thick small axes),
-    with right button to translate and the wheel to zoom.
-
-Keyboard:
-    [p]     Pause
-    [r]     Reset View
-    [q\ESC] Quit
-"""
-from gui import TransformGUI  # Import the TransformGUI class
-
 import math
 import time
 import cv2
 import numpy as np
 import pyrealsense2 as rs
+import mediapipe as mp  # Import MediaPipe
 import sys
 from PyQt5 import QtWidgets, QtCore
+from gui import TransformGUI  # Import the TransformGUI class
+from render2d import render_2d
+
+# Initialize MediaPipe Pose
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+
 
 class AppState:
     def __init__(self, *args, **kwargs):
@@ -38,9 +23,9 @@ class AppState:
         self.prev_mouse = 0, 0
         self.mouse_btns = [False, False, False]
         self.paused = False
-        self.decimate = 1
+        self.decimate = 0  # Set decimation to 0 to disable it temporarily
         self.scale = True
-        self.color = False
+        self.color = True
 
     def reset(self):
         # Reset pitch, yaw, and distance to default (straight on)
@@ -59,7 +44,10 @@ class AppState:
         # The pivot point is the position at which the camera will rotate around
         return self.translation + np.array((0, 0, self.distance), dtype=np.float32)
 
+
 state = AppState()
+
+
 def apply_gui_transform(verts, gui):
     # Get translation and rotation values from the GUI
     tx, ty, tz = gui.get_translation()
@@ -93,6 +81,7 @@ def apply_gui_transform(verts, gui):
 
     return verts
 
+
 # Configure depth and color streams
 pipeline = rs.pipeline()
 config = rs.config()
@@ -110,8 +99,13 @@ if not found_rgb:
     print("The demo requires Depth camera with Color sensor")
     exit(0)
 
-config.enable_stream(rs.stream.depth, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, rs.format.bgr8, 30)
+# Configure the streams to have the same resolution
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+
+# Initialize alignment
+align_to = rs.stream.color
+align = rs.align(align_to)
 
 # Start streaming
 pipeline.start(config)
@@ -128,9 +122,11 @@ decimate = rs.decimation_filter()
 decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
 colorizer = rs.colorizer()
 
+# Initialize output image
+out = np.empty((h, w, 3), dtype=np.uint8)
+
 
 def mouse_cb(event, x, y, flags, param):
-
     if event == cv2.EVENT_LBUTTONDOWN:
         state.mouse_btns[0] = True
 
@@ -163,7 +159,7 @@ def mouse_cb(event, x, y, flags, param):
             state.translation -= np.dot(state.rotation, dp)
 
         elif state.mouse_btns[2]:
-            dz = math.sqrt(dx**2 + dy**2) * math.copysign(0.01, -dy)
+            dz = math.sqrt(dx ** 2 + dy ** 2) * math.copysign(0.01, -dy)
             state.translation[2] += dz
             state.distance -= dz
 
@@ -183,12 +179,12 @@ cv2.setMouseCallback(state.WIN_NAME, mouse_cb)
 def project(v):
     """project 3d vector array to 2d"""
     h, w = out.shape[:2]
-    view_aspect = float(h)/w
+    view_aspect = float(h) / w
 
     # ignore divide by zero for invalid depth
     with np.errstate(divide='ignore', invalid='ignore'):
         proj = v[:, :-1] / v[:, -1, np.newaxis] * \
-               (w*view_aspect, h) + (w/2.0, h/2.0)
+               (w * view_aspect, h) + (w / 2.0, h / 2.0)
 
     # near clipping
     znear = 0.03
@@ -220,12 +216,12 @@ def grid(out, pos, rotation=np.eye(3), size=1, n=10, color=(0x80, 0x80, 0x80)):
     pos = np.array(pos)
     s = size / float(n)
     s2 = 0.5 * size
-    for i in range(0, n+1):
-        x = -s2 + i*s
+    for i in range(0, n + 1):
+        x = -s2 + i * s
         line3d(out, view(pos + np.dot((x, 0, -s2), rotation)),
                view(pos + np.dot((x, 0, s2), rotation)), color)
-    for i in range(0, n+1):
-        z = -s2 + i*s
+    for i in range(0, n + 1):
+        z = -s2 + i * s
         line3d(out, view(pos + np.dot((-s2, 0, z), rotation)),
                view(pos + np.dot((s2, 0, z), rotation)), color)
 
@@ -268,7 +264,6 @@ def pointcloud(out, verts, texcoords, color, painter=True):
         # Painter's algo, sort points from back to front
 
         # get reverse sorted indices by z (in view-space)
-        # https://gist.github.com/stevenvo/e3dad127598842459b68
         v = view(verts)
         s = v[:, 2].argsort()[::-1]
         proj = project(v[s])
@@ -276,7 +271,7 @@ def pointcloud(out, verts, texcoords, color, painter=True):
         proj = project(view(verts))
 
     if state.scale:
-        proj *= 0.5**state.decimate
+        proj *= 0.5 ** state.decimate
 
     h, w = out.shape[:2]
 
@@ -297,60 +292,103 @@ def pointcloud(out, verts, texcoords, color, painter=True):
     else:
         v, u = (texcoords * (cw, ch) + 0.5).astype(np.uint32).T
     # clip texcoords to image
-    np.clip(u, 0, ch-1, out=u)
-    np.clip(v, 0, cw-1, out=v)
+    np.clip(u, 0, ch - 1, out=u)
+    np.clip(v, 0, cw - 1, out=v)
 
     # perform uv-mapping
     out[i[m], j[m]] = color[u[m], v[m]]
 
-
-out = np.empty((h, w, 3), dtype=np.uint8)
 
 def run_gui():
     app = QtWidgets.QApplication(sys.argv)
     transform_gui = TransformGUI()
     transform_gui.show()
 
-    while True:
-        app.processEvents()  # Update the PyQt5 GUI
+    try:
+        while True:
+            app.processEvents()  # Update the PyQt5 GUI
 
-        if not state.paused:
-            verts, texcoords, color_source, depth_intrinsics = process_frames_and_pointcloud(transform_gui)
+            if not state.paused:
+                verts, texcoords, color_source, depth_intrinsics, keypoints_3d, landmark_to_point = process_frames_and_pointcloud(transform_gui)
 
-        render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui)
+            render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point)
 
-        key = handle_key_inputs()
-        if key in (27, ord("q")) or cv2.getWindowProperty(state.WIN_NAME, cv2.WND_PROP_AUTOSIZE) < 0:
-            break
+            key = handle_key_inputs()
+            if key in (27, ord("q")) or cv2.getWindowProperty(state.WIN_NAME, cv2.WND_PROP_AUTOSIZE) < 0:
+                break
 
-    pipeline.stop()  # Stop streaming
+    finally:
+        # Stop streaming
+        pipeline.stop()
+        pose.close()
+
 
 def process_frames_and_pointcloud(transform_gui):
     """Grab frames, apply decimation, filter, and transform point cloud."""
     frames = pipeline.wait_for_frames()
-    depth_frame = frames.get_depth_frame()
-    color_frame = frames.get_color_frame()
 
-    depth_frame = decimate.process(depth_frame)
+    # Align the depth frame to the color frame (for pose detection)
+    aligned_frames = align.process(frames)
+
+    # Get aligned depth and color frames (for pose estimation)
+    aligned_depth_frame = aligned_frames.get_depth_frame()
+    color_frame = aligned_frames.get_color_frame()
+
+    # Use the original (unaligned) depth frame for the point cloud
+    depth_frame = frames.get_depth_frame()
+
+    # Optionally apply decimation filter (disabled for now)
+    # depth_frame = decimate.process(depth_frame)
     depth_intrinsics = rs.video_stream_profile(depth_frame.profile).get_intrinsics()
     w, h = depth_intrinsics.width, depth_intrinsics.height
 
-    depth_image = np.asanyarray(depth_frame.get_data())
+    depth_image = np.asanyarray(aligned_depth_frame.get_data())
     color_image = np.asanyarray(color_frame.get_data())
 
-    # Mirror the color image horizontally
-    color_image = cv2.flip(color_image, 1)  # 1 means flipping around the y-axis
+    # Convert color image to RGB for MediaPipe
+    color_image_rgb = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
-    depth_colormap = np.asanyarray(colorizer.colorize(depth_frame).get_data())
+    # Process the image and find pose landmarks
+    results = pose.process(color_image_rgb)
+
+    # Collect 3D keypoints
+    keypoints_3d = []
+    keypoint_indices = []
+
+    if results.pose_landmarks:
+        for idx, landmark in enumerate(results.pose_landmarks.landmark):
+            x_px = int(landmark.x * color_image.shape[1])
+            y_px = int(landmark.y * color_image.shape[0])
+
+            # Ensure pixel coordinates are within image boundaries
+            if 0 <= x_px < depth_image.shape[1] and 0 <= y_px < depth_image.shape[0]:
+                depth = aligned_depth_frame.get_distance(x_px, y_px)  # in meters
+
+                # Handle invalid depth values (e.g., 0)
+                if depth == 0:
+                    continue
+
+                # Deproject pixel to 3D point
+                point_3d = rs.rs2_deproject_pixel_to_point(depth_intrinsics, [x_px, y_px], depth)
+
+                # Mirror the X-coordinate of the point
+                point_3d[0] = -point_3d[0]
+
+                keypoints_3d.append(point_3d)
+                keypoint_indices.append(idx)
+
+
+    # Build a mapping from landmark index to 3D point
+    landmark_to_point = {idx: point for idx, point in zip(keypoint_indices, keypoints_3d)}
 
     # Determine the source for the point cloud based on color or depth
     if state.color:
         mapped_frame, color_source = color_frame, color_image  # Use the mirrored image
     else:
-        mapped_frame, color_source = depth_frame, depth_colormap
+        mapped_frame, color_source = depth_frame, color_image  # Use color image for texture
 
     # Process the point cloud and map it to the color or depth frame
-    points = pc.calculate(depth_frame)
+    points = pc.calculate(depth_frame)  # Use the original depth frame for the point cloud
     pc.map_to(mapped_frame)
     verts = np.asanyarray(points.get_vertices()).view(np.float32).reshape(-1, 3)  # xyz
     texcoords = np.asanyarray(points.get_texture_coordinates()).view(np.float32).reshape(-1, 2)  # uv
@@ -370,23 +408,24 @@ def process_frames_and_pointcloud(transform_gui):
     transformed_verts = apply_gui_transform(verts, transform_gui)
     transformed_verts[:, 0] = -transformed_verts[:, 0]  # Negate x-coordinates
 
-    return transformed_verts, texcoords, color_source, depth_intrinsics
+    return transformed_verts, texcoords, color_source, depth_intrinsics, keypoints_3d, landmark_to_point
 
-def render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui):
-    """Render the transformed point cloud in 3D and its 2D projection side by side."""
+
+def render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point):
+    """Render the transformed point cloud in 3D, its 2D projection, and the RGB camera side by side, with pose landmarks drawn."""
     now = time.time()
 
-    # Create an output canvas large enough to display both 2D and 3D views side by side
+    # Create an output canvas large enough to display 3D and 2D views side by side
     out_3d = np.zeros((480, 640, 3), dtype=np.uint8)  # For 3D rendering
     out_2d = np.zeros((480, 640, 3), dtype=np.uint8)  # For 2D projection
 
-    # Render the 3D point cloud
-    render_3d(out_3d, verts, texcoords, color_source, depth_intrinsics, transform_gui)
+    # Render the 3D point cloud and keypoints
+    render_3d(out_3d, verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point)
 
     # Render the 2D front view of the point cloud
-    render_2d(out_2d, verts, transform_gui)
+    render_2d(out_2d, verts)
 
-    # Combine the two views side by side
+    # Show the combined view
     combined_view = np.hstack((out_3d, out_2d))
 
     # Calculate frame timing
@@ -404,8 +443,9 @@ def render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui
     # Show the combined view
     cv2.imshow(state.WIN_NAME, combined_view)
 
-def render_3d(out, verts, texcoords, color_source, depth_intrinsics, transform_gui):
-    """Render the 3D view of the point cloud."""
+
+def render_3d(out, verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point):
+    """Render the 3D view of the point cloud and draw keypoints."""
     # Existing 3D rendering logic
     out.fill(0)
 
@@ -420,6 +460,7 @@ def render_3d(out, verts, texcoords, color_source, depth_intrinsics, transform_g
 
     # Render axes
     axes(out, view([0, 0, 0]), state.rotation, size=0.1, thickness=1)
+
     # Render point cloud
     h, w = depth_intrinsics.height, depth_intrinsics.width
     if not state.scale or out.shape[:2] == (h, w):
@@ -430,80 +471,21 @@ def render_3d(out, verts, texcoords, color_source, depth_intrinsics, transform_g
         tmp = cv2.resize(tmp, out.shape[:2][::-1], interpolation=cv2.INTER_NEAREST)
         np.putmask(out, tmp > 0, tmp)
 
-def render_2d(out, verts, transform_gui, fixed_scale=300.0):
-    """Render the 2D representation of the 3D point cloud (front view) with smoothing."""
-    out.fill(0)
+    # Draw keypoints and connections in the 3D point cloud view
+    if keypoints_3d:
+        keypoints_3d_array = np.array(keypoints_3d)
+        keypoints_3d_array = apply_gui_transform(keypoints_3d_array, transform_gui)
 
-    # Project to 2D and scale
-    verts_2d = verts[:, :2]  # Keep only x and y coordinates
-    scale = fixed_scale
-    verts_2d[:, 0] = verts_2d[:, 0] * scale
-    verts_2d[:, 1] = verts_2d[:, 1] * scale
+        keypoints_2d = project(view(keypoints_3d_array))
 
-    center_x = out.shape[1] // 2
-    center_y = out.shape[0] // 2
-    verts_2d[:, 0] += center_x
-    verts_2d[:, 1] += center_y
+        # Draw keypoints as circles
+        for p in keypoints_2d:
+            if np.isnan(p).any():
+                continue
+            x, y = int(p[0]), int(p[1])
+            if 0 <= x < out.shape[1] and 0 <= y < out.shape[0]:
+                cv2.circle(out, (x, y), 5, (0, 255, 255), -1)
 
-    # Create a mask for valid points
-    valid_points = (verts_2d[:, 0] >= 0) & (verts_2d[:, 0] < out.shape[1]) & \
-                   (verts_2d[:, 1] >= 0) & (verts_2d[:, 1] < out.shape[0])
-
-    # Get valid coordinates
-    valid_x = verts_2d[valid_points][:, 0].astype(int)
-    valid_y = verts_2d[valid_points][:, 1].astype(int)
-
-    # Create a heatmap
-    heatmap = np.zeros(out.shape[:2], dtype=np.float32)
-    for x, y in zip(valid_x, valid_y):
-        cv2.circle(heatmap, (x, y), 3, 1, -1)
-
-    # Apply Gaussian blur to the heatmap
-    heatmap = cv2.GaussianBlur(heatmap, (11, 11), 0)
-
-    # Normalize the heatmap
-    heatmap = cv2.normalize(heatmap, None, 0, 255, cv2.NORM_MINMAX)
-    heatmap = heatmap.astype(np.uint8)
-
-    # Threshold the heatmap to create a binary mask
-    _, binary_mask = cv2.threshold(heatmap, 50, 255, cv2.THRESH_BINARY)
-
-    # Apply morphological operations
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
-    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel)
-
-    # Find contours
-    contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Filter contours by area
-    min_area_threshold = 100
-    large_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_area_threshold]
-
-    # Draw filled contours
-    cv2.drawContours(out, large_contours, -1, (255, 255, 255), -1)
-
-    # Apply edge smoothing
-    out = cv2.GaussianBlur(out, (5, 5), 0)
-
-    return out
-def draw_marker(out, position, color=(255, 255, 255), size=5, label=None):
-    """Draw a small marker (point) at a specific 3D position, with optional label."""
-    screen_pos = project_to_screen(position, out.shape)
-    cv2.circle(out, screen_pos, size, color, -1)
-
-    if label:
-        cv2.putText(out, label, (screen_pos[0] + 10, screen_pos[1] + 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
-
-def project_to_screen(position, screen_shape):
-    """Convert a 3D point to 2D screen coordinates."""
-    x, y, z = position
-    # Basic projection logic (placeholder, should be replaced with actual 3D-to-2D projection)
-    screen_x = int((x + 1) * screen_shape[1] // 2)  # Normalize x to screen width
-    screen_y = int((1 - y) * screen_shape[0] // 2)  # Normalize y to screen height (invert for screen coordinates)
-
-    return (screen_x, screen_y)
 
 def handle_key_inputs():
     """Handle keyboard inputs for controlling the GUI."""
@@ -518,9 +500,6 @@ def handle_key_inputs():
     return key
 
 
-
 if __name__ == "__main__":
     QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-    app = QtWidgets.QApplication(sys.argv)
-    # Your GUI initialization code here
     run_gui()
