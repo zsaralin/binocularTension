@@ -1,4 +1,3 @@
-# transform_gui.py
 import json
 from PyQt5 import QtWidgets, QtCore
 
@@ -14,7 +13,7 @@ class TransformGUI(QtWidgets.QWidget):
         # Load initial values from the config file
         self.config = self.load_config()
 
-        # Initialize sliders, spin boxes, and depth threshold control
+        # Initialize sliders, spin boxes, and movement threshold control
         self.init_ui()
 
         # Set the main layout for the widget
@@ -35,6 +34,9 @@ class TransformGUI(QtWidgets.QWidget):
         self.x_threshold_slider, self.x_threshold_spinbox = self.create_double_slider_with_spinbox('X Threshold:', -5.0, 5.0, initial_value=self.config.get('x_threshold', 5.0))
         self.y_threshold_slider, self.y_threshold_spinbox = self.create_double_slider_with_spinbox('Y Threshold:', -5.0, 5.0, initial_value=self.config.get('y_threshold', 5.0))
         self.z_threshold_slider, self.z_threshold_spinbox = self.create_double_slider_with_spinbox('Z Threshold (Depth):', 0.0, 5.0, initial_value=self.config.get('z_threshold', 0.0))
+
+        # Add the movement threshold slider and spin box (new addition)
+        self.movement_threshold_slider, self.movement_threshold_spinbox = self.create_slider_with_spinbox('Movement Threshold:', 1, 100, initial_value=self.config.get('movement_threshold', 10))
 
         # Add a Save button
         self.save_button = QtWidgets.QPushButton("Save Settings")
@@ -101,7 +103,8 @@ class TransformGUI(QtWidgets.QWidget):
             'rotate_z': self.rz_slider.value(),
             'x_threshold': self.x_threshold_spinbox.value(),
             'y_threshold': self.y_threshold_spinbox.value(),
-            'z_threshold': self.z_threshold_spinbox.value()
+            'z_threshold': self.z_threshold_spinbox.value(),
+            'movement_threshold': self.movement_threshold_slider.value()  # Save movement threshold
         }
 
         with open(CONFIG_FILE, 'w') as f:
@@ -119,3 +122,7 @@ class TransformGUI(QtWidgets.QWidget):
         return (self.x_threshold_spinbox.value(),
                 self.y_threshold_spinbox.value(),
                 self.z_threshold_spinbox.value())
+
+    def get_movement_threshold(self):
+        return self.movement_threshold_slider.value()
+

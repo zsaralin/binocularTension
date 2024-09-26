@@ -8,10 +8,15 @@ import sys
 from PyQt5 import QtWidgets, QtCore
 from gui import TransformGUI  # Import the TransformGUI class
 from render2d import render_2d
+import socket
+import math
+import time
+import cv2
+
 
 # Initialize MediaPipe Pose
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+mp_face_detection = mp.solutions.face_detection
+face_detection = mp_face_detection.FaceDetection(min_detection_confidence=0.5)
 
 
 class AppState:
@@ -119,74 +124,28 @@ w, h = depth_intrinsics.width, depth_intrinsics.height
 # Processing blocks
 pc = rs.pointcloud()
 decimate = rs.decimation_filter()
-decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
+decimate.set_option(rs.option.filter_magnitude, 2)
 colorizer = rs.colorizer()
 
 # Initialize output image
 out = np.empty((h, w, 3), dtype=np.uint8)
 
 
-def mouse_cb(event, x, y, flags, param):
-    if event == cv2.EVENT_LBUTTONDOWN:
-        state.mouse_btns[0] = True
-
-    if event == cv2.EVENT_LBUTTONUP:
-        state.mouse_btns[0] = False
-
-    if event == cv2.EVENT_RBUTTONDOWN:
-        state.mouse_btns[1] = True
-
-    if event == cv2.EVENT_RBUTTONUP:
-        state.mouse_btns[1] = False
-
-    if event == cv2.EVENT_MBUTTONDOWN:
-        state.mouse_btns[2] = True
-
-    if event == cv2.EVENT_MBUTTONUP:
-        state.mouse_btns[2] = False
-
-    if event == cv2.EVENT_MOUSEMOVE:
-
-        h, w = out.shape[:2]
-        dx, dy = x - state.prev_mouse[0], y - state.prev_mouse[1]
-
-        if state.mouse_btns[0]:
-            state.yaw += float(dx) / w * 2
-            state.pitch -= float(dy) / h * 2
-
-        elif state.mouse_btns[1]:
-            dp = np.array((dx / w, dy / h, 0), dtype=np.float32)
-            state.translation -= np.dot(state.rotation, dp)
-
-        elif state.mouse_btns[2]:
-            dz = math.sqrt(dx ** 2 + dy ** 2) * math.copysign(0.01, -dy)
-            state.translation[2] += dz
-            state.distance -= dz
-
-    if event == cv2.EVENT_MOUSEWHEEL:
-        dz = math.copysign(0.1, flags)
-        state.translation[2] += dz
-        state.distance -= dz
-
-    state.prev_mouse = (x, y)
 
 
 cv2.namedWindow(state.WIN_NAME, cv2.WINDOW_AUTOSIZE)
 cv2.resizeWindow(state.WIN_NAME, w, h)
-cv2.setMouseCallback(state.WIN_NAME, mouse_cb)
+# cv2.setMouseCallback(state.WIN_NAME, mouse_cb)
 
 
 def project(v):
-    """project 3d vector array to 2d"""
     h, w = out.shape[:2]
     view_aspect = float(h) / w
 
-    # ignore divide by zero for invalid depth
     with np.errstate(divide='ignore', invalid='ignore'):
         proj = v[:, :-1] / v[:, -1, np.newaxis] * \
                (w * view_aspect, h) + (w / 2.0, h / 2.0)
 
-    # near clipping
     znear = 0.03
     proj[v[:, 2] < znear] = np.nan
     return proj
@@ -306,22 +265,24 @@ def run_gui():
 
     try:
         while True:
-            app.processEvents()  # Update the PyQt5 GUI
-
+            app.processEvents()
             if not state.paused:
                 verts, texcoords, color_source, depth_intrinsics, keypoints_3d, landmark_to_point = process_frames_and_pointcloud(transform_gui)
+
+            # Assuming the render_2d returns the closest moving blob coordinates (x, y, z)
+            blob_coords = render_2d(out, verts, transform_gui)
+            # if blob_coords:
+            #     send_blob_coords(conn, blob_coords)  # Send the coordinates to the display system
 
             render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point)
 
             key = handle_key_inputs()
             if key in (27, ord("q")) or cv2.getWindowProperty(state.WIN_NAME, cv2.WND_PROP_AUTOSIZE) < 0:
                 break
-
     finally:
-        # Stop streaming
         pipeline.stop()
-        pose.close()
-
+        face_detection.close()
+        # conn.close()
 
 def process_frames_and_pointcloud(transform_gui):
     """Grab frames, apply decimation, filter, and transform point cloud."""
@@ -349,34 +310,26 @@ def process_frames_and_pointcloud(transform_gui):
     color_image_rgb = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
 
     # Process the image and find pose landmarks
-    results = pose.process(color_image_rgb)
+    results = face_detection.process(color_image_rgb)
 
-    # Collect 3D keypoints
+# Extract face keypoints instead of pose landmarks
     keypoints_3d = []
     keypoint_indices = []
+    if results.detections:
+        for detection in results.detections:
+            keypoints = detection.location_data.relative_keypoints
+            # Only get the nose keypoint, which is the third one (index 2)
+            nose_keypoint = keypoints[2]
+            x_px = int(nose_keypoint.x * color_image.shape[1])
+            y_px = int(nose_keypoint.y * color_image.shape[0])
 
-    if results.pose_landmarks:
-        for idx, landmark in enumerate(results.pose_landmarks.landmark):
-            x_px = int(landmark.x * color_image.shape[1])
-            y_px = int(landmark.y * color_image.shape[0])
-
-            # Ensure pixel coordinates are within image boundaries
+            # Get depth value and deproject to 3D
             if 0 <= x_px < depth_image.shape[1] and 0 <= y_px < depth_image.shape[0]:
-                depth = aligned_depth_frame.get_distance(x_px, y_px)  # in meters
-
-                # Handle invalid depth values (e.g., 0)
-                if depth == 0:
-                    continue
-
-                # Deproject pixel to 3D point
-                point_3d = rs.rs2_deproject_pixel_to_point(depth_intrinsics, [x_px, y_px], depth)
-
-                # Mirror the X-coordinate of the point
-                point_3d[0] = -point_3d[0]
-
-                keypoints_3d.append(point_3d)
-                keypoint_indices.append(idx)
-
+                depth = aligned_depth_frame.get_distance(x_px, y_px)
+                if depth > 0:
+                    point_3d = rs.rs2_deproject_pixel_to_point(depth_intrinsics, [x_px, y_px], depth)
+                    point_3d[0] = -point_3d[0]  # Mirror the X-coordinate
+                    keypoints_3d.append(point_3d)
 
     # Build a mapping from landmark index to 3D point
     landmark_to_point = {idx: point for idx, point in zip(keypoint_indices, keypoints_3d)}
@@ -410,9 +363,8 @@ def process_frames_and_pointcloud(transform_gui):
 
     return transformed_verts, texcoords, color_source, depth_intrinsics, keypoints_3d, landmark_to_point
 
-
 def render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point):
-    """Render the transformed point cloud in 3D, its 2D projection, and the RGB camera side by side, with pose landmarks drawn."""
+    """Render the transformed point cloud in 3D, its 2D projection, and the RGB camera side by side, with face landmarks drawn."""
     now = time.time()
 
     # Create an output canvas large enough to display 3D and 2D views side by side
@@ -422,8 +374,35 @@ def render_frame(verts, texcoords, color_source, depth_intrinsics, transform_gui
     # Render the 3D point cloud and keypoints
     render_3d(out_3d, verts, texcoords, color_source, depth_intrinsics, transform_gui, keypoints_3d, landmark_to_point)
 
-    # Render the 2D front view of the point cloud
-    render_2d(out_2d, verts)
+    # Project the 3D nose keypoint to 2D
+    nose_keypoint_2d = None
+    if keypoints_3d:  # Check if we have keypoints
+        keypoints_3d_array = np.array(keypoints_3d)
+        keypoints_3d_array = apply_gui_transform(keypoints_3d_array, transform_gui)
+
+        keypoints_2d = project(view(keypoints_3d_array))
+
+        if len(keypoints_2d) > 0:
+            nose_keypoint_2d = keypoints_2d[0]  # Get the 2D position of the nose (first keypoint)
+
+    # Render the 2D front view of the point cloud and pass the nose keypoint
+    render_2d(out_2d, verts, transform_gui, nose_keypoint=nose_keypoint_2d)
+
+
+    # Now draw the nose keypoint on the 2D render (same way as 3D)
+    if keypoints_3d:
+        keypoints_3d_array = np.array(keypoints_3d)
+        keypoints_3d_array = apply_gui_transform(keypoints_3d_array, transform_gui)
+
+        keypoints_2d = project(view(keypoints_3d_array))
+
+        # Draw the nose keypoint in the 2D render
+        if len(keypoints_2d) > 0:
+            p = keypoints_2d[0]  # Nose is the first keypoint we processed
+            if not np.isnan(p).any():
+                x, y = int(p[0]), int(p[1])
+                if 0 <= x < out_2d.shape[1] and 0 <= y < out_2d.shape[0]:
+                    cv2.circle(out_2d, (x, y), 5, (0, 255, 255), -1)  # Yellow circle for the nose in 2D
 
     # Show the combined view
     combined_view = np.hstack((out_3d, out_2d))
@@ -500,6 +479,34 @@ def handle_key_inputs():
     return key
 
 
+
+def start_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind(('localhost', 65432))
+    server_socket.listen(1)
+    server_socket.setblocking(False)  # Set non-blocking mode
+    print("Server is running and waiting for connections...")
+
+    conn = None
+    while conn is None:
+        try:
+            conn, addr = server_socket.accept()  # Accept a new connection
+            print(f"Connected to {addr}")
+        except BlockingIOError:
+            # Non-blocking mode: just continue if no connection is ready
+            pass
+
+    return conn, server_socket
+
+def send_blob_coords(conn, coords):
+    try:
+        message = f"{coords[0]},{coords[1]},{coords[2]}\n"
+        conn.sendall(message.encode())
+    except Exception as e:
+        print(f"Error sending coordinates: {e}")
+
 if __name__ == "__main__":
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-    run_gui()
+    # conn, server_socket = start_server()  # Start the server and wait for a connection
+    # After the connection is established, you can run the GUI or other processes
+    run_gui()  # Run the GUI and send blob coordinates using send_blob_coords

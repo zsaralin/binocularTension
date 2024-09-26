@@ -8,5 +8,5 @@
     "x_threshold": 5.0,
     "y_threshold": 5.0,
     "z_threshold": 1.4,
-    "movement_threshold": 10
+    "movement_threshold": 20
 }
