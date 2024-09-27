@@ -1,116 +1,50 @@
+# License: Apache 2.0. See LICENSE file in root directory.
+# Copyright(c) 2015-2017 Intel Corporation. All Rights Reserved.
+
+"""
+OpenCV and Numpy Point cloud Software Renderer using only Depth Stream
+"""
+
+import math
+import time
 import cv2
 import numpy as np
 import pyrealsense2 as rs
-import math
-from gui import ControlPanel  # Import the new ControlPanel class
-from render2d import render_2d
-import time
-from filterpy.kalman import KalmanFilter
 
-# prev_time = time.time()
-# fps = 0
+class AppState:
+    def __init__(self, *args, **kwargs):
+        self.WIN_NAME = 'RealSense Depth Only'
+        self.pitch, self.yaw = math.radians(-10), math.radians(-15)
+        self.translation = np.array([0, 0, -1], dtype=np.float32)
+        self.distance = 2
+        self.prev_mouse = 0, 0
+        self.mouse_btns = [False, False, False]
+        self.paused = False
+        self.decimate = 1
+        self.scale = True
 
-# Initialize Kalman filter
-def init_kalman_filter():
-    kf = KalmanFilter(dim_x=4, dim_z=2)  # State: [x, y, dx, dy], Measurement: [x, y]
+    def reset(self):
+        self.pitch, self.yaw, self.distance = 0, 0, 2
+        self.translation[:] = 0, 0, -1
 
-    kf.F = np.array([[1, 0, 1, 0],
-                     [0, 1, 0, 1],
-                     [0, 0, 1, 0],
-                     [0, 0, 0, 1]])  # State transition matrix
+    @property
+    def rotation(self):
+        Rx, _ = cv2.Rodrigues((self.pitch, 0, 0))
+        Ry, _ = cv2.Rodrigues((0, self.yaw, 0))
+        return np.dot(Ry, Rx).astype(np.float32)
 
-    kf.H = np.array([[1, 0, 0, 0],
-                     [0, 1, 0, 0]])  # Measurement function
+    @property
+    def pivot(self):
+        return self.translation + np.array((0, 0, self.distance), dtype=np.float32)
 
-    # Increase measurement noise to filter out noisy observations
-    kf.R = np.array([[50, 0],
-                     [0, 50]])  # You can experiment with higher values to reduce noise
 
-    # Decrease process noise to make the filter smoother
-    kf.Q = np.array([[0.1, 0, 0, 0],
-                     [0, 0.1, 0, 0],
-                     [0, 0, 0.1, 0],
-                     [0, 0, 0, 0.1]])  # Lower values will smooth out movement more
+state = AppState()
 
-    return kf
-
-# Blob tracking function
-# Blob tracking function with contour visualization and rescaling
-def track_blobs(out, previous_blobs, kf, contour_canvas):
-    # Convert the point cloud output 'out' to grayscale
-    gray_out = cv2.cvtColor(out, cv2.COLOR_BGR2GRAY)
-
-    # Apply thresholding to isolate blobs (based on the grayscale point cloud)
-    _, thresh = cv2.threshold(gray_out, 50, 255, cv2.THRESH_BINARY)
-
-    # Find contours (blobs) based on the thresholded point cloud
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    current_blobs = []
-    for contour in contours:
-        # Draw the contours on the right canvas
-        cv2.drawContours(contour_canvas, [contour], -1, (255, 255, 255), 2)  # White contours
-
-        # Calculate centroid of the blob
-        M = cv2.moments(contour)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-
-            # Update Kalman filter
-            kf.predict()
-            kf.update(np.array([cX, cY]))
-
-            # Get the filtered position
-            filtered_pos = kf.x[:2]
-
-            current_blobs.append(filtered_pos)
-
-    return current_blobs
-
-# Helper function: get_rotation_matrix
-def get_rotation_matrix(angles):
-    """Calculates a 3D rotation matrix from rotation angles."""
-    Rx = np.array([[1, 0, 0],
-                   [0, math.cos(angles[0]), -math.sin(angles[0])],
-                   [0, math.sin(angles[0]), math.cos(angles[0])]])
-
-    Ry = np.array([[math.cos(angles[1]), 0, math.sin(angles[1])],
-                   [0, 1, 0],
-                   [-math.sin(angles[1]), 0, math.cos(angles[1])]])
-
-    Rz = np.array([[math.cos(angles[2]), -math.sin(angles[2]), 0],
-                   [math.sin(angles[2]), math.cos(angles[2]), 0],
-                   [0, 0, 1]])
-
-    return np.dot(Rz, np.dot(Ry, Rx))
-
-# Helper function: apply_transform
-def apply_transform(verts, rotation_matrix, translation_values):
-    """Applies a rotation matrix and translation vector to vertices."""
-    verts = np.dot(verts, rotation_matrix.T)
-    verts += np.array(translation_values)
-    return verts
-
-# Configure depth and color streams
+# Configure depth stream only
 pipeline = rs.pipeline()
 config = rs.config()
 
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
-
-found_rgb = False
-for s in device.sensors:
-    if s.get_info(rs.camera_info.name) == 'RGB Camera':
-        found_rgb = True
-        break
-if not found_rgb:
-    print("The demo requires Depth camera with Color sensor")
-    exit(0)
-
 config.enable_stream(rs.stream.depth, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, rs.format.bgr8, 30)
 
 # Start streaming
 pipeline.start(config)
@@ -124,152 +58,128 @@ w, h = depth_intrinsics.width, depth_intrinsics.height
 # Processing blocks
 pc = rs.pointcloud()
 decimate = rs.decimation_filter()
-decimate.set_option(rs.option.filter_magnitude, 2)
+decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
 colorizer = rs.colorizer()
 
-out = np.empty((h, w, 3), dtype=np.uint8)
+def project(v):
+    """project 3d vector array to 2d"""
+    h, w = out.shape[:2]
+    view_aspect = float(h) / w
 
-# Initialize the PyQt5 GUI
-from PyQt5.QtWidgets import QApplication
-import sys
+    # ignore divide by zero for invalid depth
+    with np.errstate(divide='ignore', invalid='ignore'):
+        proj = v[:, :-1] / v[:, -1, np.newaxis] * (w * view_aspect, h) + (w / 2.0, h / 2.0)
 
-app = QApplication(sys.argv)
-control_panel = ControlPanel()  # Create the control panel instance
-control_panel.show()
+    # near clipping
+    znear = 0.03
+    proj[v[:, 2] < znear] = np.nan
+    return proj
 
-# Initialize Kalman filter
-kf = init_kalman_filter()
+def view(v):
+    """apply view transformation on vector array"""
+    return np.dot(v - state.pivot, state.rotation) + state.pivot - state.translation
 
-# Track previous blob positions
-previous_blobs = []
+def line3d(out, pt1, pt2, color=(0x80, 0x80, 0x80), thickness=1):
+    """draw a 3d line from pt1 to pt2"""
+    p0 = project(pt1.reshape(-1, 3))[0]
+    p1 = project(pt2.reshape(-1, 3))[0]
+    if np.isnan(p0).any() or np.isnan(p1).any():
+        return
+    p0 = tuple(p0.astype(int))
+    p1 = tuple(p1.astype(int))
+    rect = (0, 0, out.shape[1], out.shape[0])
+    inside, p0, p1 = cv2.clipLine(rect, p0, p1)
+    if inside:
+        cv2.line(out, p0, p1, color, thickness, cv2.LINE_AA)
 
-while True:
+def grid(out, pos, rotation=np.eye(3), size=1, n=10, color=(0x80, 0x80, 0x80)):
+    """draw a grid on xz plane"""
+    pos = np.array(pos)
+    s = size / float(n)
+    s2 = 0.5 * size
+    for i in range(0, n + 1):
+        x = -s2 + i * s
+        line3d(out, view(pos + np.dot((x, 0, -s2), rotation)),
+               view(pos + np.dot((x, 0, s2), rotation)), color)
+    for i in range(0, n + 1):
+        z = -s2 + i * s
+        line3d(out, view(pos + np.dot((-s2, 0, z), rotation)),
+               view(pos + np.dot((s2, 0, z), rotation)), color)
 
-    # Grab camera data
-    frames = pipeline.wait_for_frames()
+def pointcloud(out, verts, painter=True):
+    """draw point cloud with optional painter's algorithm"""
+    if painter:
+        v = view(verts)
+        s = v[:, 2].argsort()[::-1]
+        proj = project(v[s])
+    else:
+        proj = project(view(verts))
 
-    depth_frame = frames.get_depth_frame()
-    color_frame = frames.get_color_frame()
+    if state.scale:
+        proj *= 0.5 ** state.decimate
 
-    depth_frame = decimate.process(depth_frame)
-
-    depth_image = np.asanyarray(depth_frame.get_data())
-    color_image = np.asanyarray(color_frame.get_data())
-
-    depth_colormap = np.asanyarray(colorizer.colorize(depth_frame).get_data())
-
-    points = pc.calculate(depth_frame)
-    pc.map_to(color_frame)
-
-    # Pointcloud data to arrays
-    v, t = points.get_vertices(), points.get_texture_coordinates()
-    verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
-    texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)  # uv
-
-    # Get updated rotation matrix based on the PyQt5 sliders
-    rotation_angles = [
-        math.radians(control_panel.rotation_sliders[0].value()),
-        math.radians(control_panel.rotation_sliders[1].value()),
-        math.radians(control_panel.rotation_sliders[2].value())
-    ]
-    rotation_matrix = get_rotation_matrix(rotation_angles)
-
-    # Get translation values from the PyQt5 sliders
-    translation_values = [
-        control_panel.translation_sliders[0].value() / 100.0,
-        control_panel.translation_sliders[1].value() / 100.0,
-        control_panel.translation_sliders[2].value() / 100.0
-    ]
-
-    # Apply rotation and translation to the vertices
-    verts = apply_transform(verts, rotation_matrix, translation_values)
-
-    # Get threshold values from the PyQt5 sliders
-    thresholds = {
-        'x_threshold': control_panel.threshold_sliders[0].value() / 100.0,
-        'y_threshold': control_panel.threshold_sliders[1].value() / 100.0,
-        'z_threshold': control_panel.threshold_sliders[2].value() / 100.0,
-        'movement_threshold': control_panel.threshold_sliders[3].value()
-    }
-
-    # Apply thresholds to filter the vertices
-    x_filter = np.abs(verts[:, 0]) < thresholds['x_threshold']
-    y_filter = np.abs(verts[:, 1]) < thresholds['y_threshold']
-    z_filter = verts[:, 2] < thresholds['z_threshold']
-    threshold_mask = x_filter & y_filter & z_filter
-    verts = verts[threshold_mask]
-    texcoords = texcoords[threshold_mask]
-
-    # Render point cloud
-    out.fill(0)
-
-    # Create a new blank canvas for drawing contours on the right
-    contour_canvas = np.zeros_like(out)
-
-    def project(v):
-        h, w = out.shape[:2]
-        view_aspect = float(h) / w
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            proj = v[:, :-1] / v[:, -1, np.newaxis] * \
-                   (w * view_aspect, h) + (w / 2.0, h / 2.0)
-
-        znear = 0.03
-        proj[v[:, 2] < znear] = np.nan
-        return proj
-
-    proj = project(verts)
+    h, w = out.shape[:2]
     j, i = proj.astype(np.uint32).T
-
     im = (i >= 0) & (i < h)
     jm = (j >= 0) & (j < w)
     m = im & jm
 
-    cw, ch = color_image.shape[:2][::-1]
-    v, u = (texcoords * (cw, ch) + 0.5).astype(np.uint32).T
-    np.clip(u, 0, ch - 1, out=u)
-    np.clip(v, 0, cw - 1, out=v)
+    out[i[m], j[m]] = (255, 255, 255)
 
-    out[i[m], j[m]] = color_image[u[m], v[m]]
+out = np.empty((h, w, 3), dtype=np.uint8)
 
-    # Call render_2d to draw contours on the right canvas
-    # render_2d(out, verts, contour_canvas, depth_image, project=project)
+while True:
+    # Grab camera data
+    if not state.paused:
+        # Wait for depth frame
+        frames = pipeline.wait_for_frames()
+        depth_frame = frames.get_depth_frame()
 
-    # Track blobs
-    canvas_width, canvas_height = out.shape[1], out.shape[0]
-    depth_width, depth_height = depth_image.shape[1], depth_image.shape[0]
+        depth_frame = decimate.process(depth_frame)
 
-    # Call track_blobs and draw contours + centroids
-    current_blobs = track_blobs(out, previous_blobs, kf, contour_canvas)
+        # Grab new intrinsics (may be changed by decimation)
+        depth_intrinsics = rs.video_stream_profile(depth_frame.profile).get_intrinsics()
+        w, h = depth_intrinsics.width, depth_intrinsics.height
 
-    # Update previous_blobs for the next iteration
-    previous_blobs = current_blobs
+        depth_image = np.asanyarray(depth_frame.get_data())
+        depth_colormap = np.asanyarray(colorizer.colorize(depth_frame).get_data())
 
-    # Combine the point cloud (left) and the contours (right) side-by-side
-    combined_image = np.hstack((out, contour_canvas))
+        points = pc.calculate(depth_frame)
 
-    # Display the combined image
-    current_time = time.time()
+        # Pointcloud data to arrays
+        v = points.get_vertices()
+        verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
 
-    # Calculate FPS
-    # current_time = time.time()
-    # fps = 1 / (current_time - prev_time)
-    # prev_time = current_time
+    # Render
+    out.fill(0)
 
-    # Display the combined image in a static window
-    cv2.imshow('Point Cloud and Contours', combined_image)
+    grid(out, (0, 0.5, 1), size=1, n=10)
+    pointcloud(out, verts)
 
-    # Update window title with FPS
-    cv2.setWindowTitle('Point Cloud and Contours', f'Point Cloud and Contours - FPS: {0:.2f}')
+    dt = time.time()
 
-    # Process PyQt5 events
-    app.processEvents()
-
-    # Handle key press to exit
+    cv2.setWindowTitle(state.WIN_NAME, "RealSense (%dx%d)" % (w, h))
+    cv2.imshow(state.WIN_NAME, out)
     key = cv2.waitKey(1)
-    if key in (27, ord("q")):
+
+    if key == ord("r"):
+        state.reset()
+
+    if key == ord("p"):
+        state.paused ^= True
+
+    if key == ord("d"):
+        state.decimate = (state.decimate + 1) % 3
+        decimate.set_option(rs.option.filter_magnitude, 2 ** state.decimate)
+
+    if key == ord("s"):
+        cv2.imwrite('./out.png', out)
+
+    if key == ord("e"):
+        points.export_to_ply('./out.ply')
+
+    if key in (27, ord("q")) or cv2.getWindowProperty(state.WIN_NAME, cv2.WND_PROP_AUTOSIZE) < 0:
         break
 
 # Stop streaming
 pipeline.stop()
-cv2.destroyAllWindows()
