@@ -56,8 +56,8 @@ class ControlPanel(QWidget):
             slider_layout.addWidget(label)
 
             slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(-100)
-            slider.setMaximum(100)
+            slider.setMinimum(-500)
+            slider.setMaximum(500)
             slider.setValue(self.config.get(f'translate_{self.translation_labels[i][-1].lower()}', 0))  # Set from config
             slider.setTickPosition(QSlider.TicksBelow)
             slider.setTickInterval(10)
@@ -65,7 +65,7 @@ class ControlPanel(QWidget):
             slider_layout.addWidget(slider)
 
             spinbox = QSpinBox()
-            spinbox.setRange(-100, 100)
+            spinbox.setRange(-500, 500)
             spinbox.setValue(slider.value())
             spinbox.valueChanged.connect(lambda value, s=slider: s.setValue(value))
             self.translation_spinboxes.append(spinbox)
@@ -87,7 +87,7 @@ class ControlPanel(QWidget):
 
             slider = QSlider(Qt.Horizontal)
             slider.setMinimum(0)
-            slider.setMaximum(300)
+            slider.setMaximum(1600)
             slider.setValue(self.config.get(f'{self.threshold_labels[i].lower().replace(" ", "_")}', 50 if i < 3 else 10))
             slider.setTickPosition(QSlider.TicksBelow)
             slider.setTickInterval(10)
@@ -95,7 +95,7 @@ class ControlPanel(QWidget):
             slider_layout.addWidget(slider)
 
             spinbox = QSpinBox()
-            spinbox.setRange(0, 300)
+            spinbox.setRange(0, 1600)
             spinbox.setValue(slider.value())
             spinbox.valueChanged.connect(lambda value, s=slider: s.setValue(value))
             self.threshold_spinboxes.append(spinbox)

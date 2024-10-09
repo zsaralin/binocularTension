@@ -1,12 +1,12 @@
 {
-    "rotate_x": -14,
+    "rotate_x": -51,
     "rotate_y": 0,
-    "rotate_z": 0,
-    "translate_x": 0,
-    "translate_y": -31,
+    "rotate_z": -3,
+    "translate_x": -42,
+    "translate_y": -220,
     "translate_z": 12,
     "x_threshold": 300,
     "y_threshold": 300,
-    "z_threshold": 230,
+    "z_threshold": 267,
     "movement_threshold": 20
 }
