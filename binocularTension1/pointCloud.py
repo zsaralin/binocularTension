@@ -2,242 +2,318 @@ import cv2
 import numpy as np
 import pyrealsense2 as rs
 import math
-from gui import ControlPanel
 from PyQt5.QtWidgets import QApplication
-import sys
 from ultralytics import YOLO
 from collections import deque
-from multiperson import get_processed_frame
+from scipy import stats
+import sys
+from gui import ControlPanel
+import socket
+from main import update_display_image
 
-# Helper function: get_rotation_matrix
+# Initialize YOLO model
+model = YOLO("yolo11n.pt")
+model.verbose = False  # Suppress logging
+
+# Configure RealSense streams
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
+profile = pipeline.start(config)
+
+# Get depth scale
+depth_scale = profile.get_device().first_depth_sensor().get_depth_scale()
+
+# Get camera intrinsics
+depth_intrinsics = profile.get_stream(rs.stream.depth).as_video_stream_profile().get_intrinsics()
+color_intrinsics = profile.get_stream(rs.stream.color).as_video_stream_profile().get_intrinsics()
+
+# Initialize PyQt5 GUI
+app = QApplication(sys.argv)
+control_panel = ControlPanel()
+control_panel.show()
+
+# Initialize tracked objects
+tracked_objects = {}
+
+# Movement threshold (in pixels)
+movement_threshold = 1
+window_size = 5  # Moving average window size
+
+# Motion detection parameters
+motion_threshold = 1  # Threshold for frame differencing
+min_area = 500  # Minimum area of contours to be considered motion
+
+# Initialize previous frame for motion detection
+previous_frame = None
+
 def get_rotation_matrix(angles):
-    """Calculates a 3D rotation matrix from rotation angles."""
     Rx = np.array([[1, 0, 0],
                    [0, math.cos(angles[0]), -math.sin(angles[0])],
                    [0, math.sin(angles[0]), math.cos(angles[0])]])
-
     Ry = np.array([[math.cos(angles[1]), 0, math.sin(angles[1])],
                    [0, 1, 0],
                    [-math.sin(angles[1]), 0, math.cos(angles[1])]])
-
     Rz = np.array([[math.cos(angles[2]), -math.sin(angles[2]), 0],
                    [math.sin(angles[2]), math.cos(angles[2]), 0],
                    [0, 0, 1]])
-
     return np.dot(Rz, np.dot(Ry, Rx))
 
-# Helper function: apply_transform
 def apply_transform(verts, rotation_matrix, translation_values):
-    """Applies a rotation matrix and translation vector to vertices."""
-    verts = np.dot(verts, rotation_matrix.T)
-    verts += np.array(translation_values)
-    return verts
+    """Apply rotation and translation to 3D vertices."""
+    transformed_verts = np.dot(verts, rotation_matrix.T) + np.array(translation_values)
+    return transformed_verts
 
-# Configure depth and color streams
-pipeline = rs.pipeline()
-config = rs.config()
+def convert_depth_pixel_to_metric_coordinate(depth, pixel_x, pixel_y, intrinsics):
+    """Convert depth image pixel to metric coordinate."""
+    x = (pixel_x - intrinsics.ppx) / intrinsics.fx * depth
+    y = (pixel_y - intrinsics.ppy) / intrinsics.fy * depth
+    z = depth
+    return x, y, z
 
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
+def project_to_2d(point, intrinsics):
+    """Project 3D point to 2D using camera intrinsics."""
+    x, y, z = point
+    if z == 0:
+        return None
+    pixel_x = int((x / z) * intrinsics.fx + intrinsics.ppx)
+    pixel_y = int((y / z) * intrinsics.fy + intrinsics.ppy)
+    return pixel_x, pixel_y
 
-# Get the depth scale
-depth_sensor = device.first_depth_sensor()
-depth_scale = depth_sensor.get_depth_scale()
-
-found_rgb = False
-for s in device.sensors:
-    if s.get_info(rs.camera_info.name) == 'RGB Camera':
-        found_rgb = True
-        break
-if not found_rgb:
-    print("The demo requires Depth camera with Color sensor")
-    exit(0)
-
-config.enable_stream(rs.stream.depth, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, rs.format.bgr8, 30)
-
-# Start streaming
-profile = pipeline.start(config)
-
-# Get stream profile and camera intrinsics
-depth_intrinsics = rs.video_stream_profile(profile.get_stream(rs.stream.depth)).get_intrinsics()
-w, h = depth_intrinsics.width, depth_intrinsics.height
-
-# Processing blocks
-pc = rs.pointcloud()
-decimate = rs.decimation_filter()
-decimate.set_option(rs.option.filter_magnitude, 2)
-colorizer = rs.colorizer()
-
-out = np.empty((h, w, 3), dtype=np.uint8)
-
-# Initialize the PyQt5 GUI
-app = QApplication(sys.argv)
-control_panel = ControlPanel()  # Create the control panel instance
-control_panel.show()
-
-# Load the YOLOv8 model
-model = YOLO("yolov8n.pt")
-model.verbose = False
-
-# Dictionary to store object tracking data
-tracked_objects = {}
-
-# Moving average window size
-window_size = 5
-
-# Movement threshold (in pixels)
-movement_threshold = 10
-
-def project_point(point_3d, rotation_matrix, translation_values, intrinsics):
-    # Apply rotation and translation
-    point_3d = np.dot(rotation_matrix, point_3d) + translation_values
-    
-    # Project 3D point to 2D
-    x = point_3d[0] / point_3d[2] * intrinsics.fx + intrinsics.ppx
-    y = point_3d[1] / point_3d[2] * intrinsics.fy + intrinsics.ppy
-    
-    return int(x), int(y)
-
-while True:
-    # Grab camera data
-    frames = pipeline.wait_for_frames()
-
-    depth_frame = frames.get_depth_frame()
-    color_frame = frames.get_color_frame()
-
-    depth_frame = decimate.process(depth_frame)
-
-    depth_image = np.asanyarray(depth_frame.get_data())
-    color_image = np.asanyarray(color_frame.get_data())
-
-    points = pc.calculate(depth_frame)
-    pc.map_to(color_frame)
-
-    # Pointcloud data to arrays
-    v, t = points.get_vertices(), points.get_texture_coordinates()
-    verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)  # xyz
-    texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)  # uv
-
-    # Get updated rotation matrix based on the PyQt5 sliders
-    rotation_angles = [
-        math.radians(control_panel.rotation_sliders[0].value()),
-        math.radians(control_panel.rotation_sliders[1].value()),
-        math.radians(control_panel.rotation_sliders[2].value())
-    ]
-    rotation_matrix = get_rotation_matrix(rotation_angles)
-
-    # Get translation values from the PyQt5 sliders
-    translation_values = [
-        control_panel.translation_sliders[0].value() / 100.0,
-        control_panel.translation_sliders[1].value() / 100.0,
-        control_panel.translation_sliders[2].value() / 100.0
-    ]
-
-    # Apply rotation and translation to the vertices
-    verts = apply_transform(verts, rotation_matrix, translation_values)
-
-    # Get threshold values from the PyQt5 sliders
-    thresholds = {
-        'x_threshold': control_panel.threshold_sliders[0].value() / 100.0,
-        'y_threshold': control_panel.threshold_sliders[1].value() / 100.0,
-        'z_threshold': control_panel.threshold_sliders[2].value() / 100.0,
-    }
-
-    # Apply thresholds to filter the vertices
-    x_filter = np.abs(verts[:, 0]) < thresholds['x_threshold']
-    y_filter = np.abs(verts[:, 1]) < thresholds['y_threshold']
-    z_filter = verts[:, 2] < thresholds['z_threshold']
-    threshold_mask = x_filter & y_filter & z_filter
-    verts = verts[threshold_mask]
-    texcoords = texcoords[threshold_mask]
-
-    # Render point cloud
-    out.fill(0)
-
-    def project(v):
-        h, w = out.shape[:2]
-        view_aspect = float(h) / w
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            proj = v[:, :-1] / v[:, -1, np.newaxis] * \
-                   (w * view_aspect, h) + (w / 2.0, h / 2.0)
-
-        znear = 0.03
-        proj[v[:, 2] < znear] = np.nan
-        return proj
-
-    proj = project(verts)
-    j, i = proj.astype(np.uint32).T
-
-    im = (i >= 0) & (i < h)
-    jm = (j >= 0) & (j < w)
-    m = im & jm
-
-    cw, ch = color_image.shape[:2][::-1]
-    v, u = (texcoords * (cw, ch) + 0.5).astype(np.uint32).T
-    np.clip(u, 0, ch - 1, out=u)
-    np.clip(v, 0, cw - 1, out=v)
-
-    out[i[m], j[m]] = color_image[u[m], v[m]]
-
-    # Get the processed frame with YOLO detections and moving objects
-    yolo_frame, moving_objects = get_processed_frame(pipeline, model, tracked_objects, window_size, movement_threshold)
-
-    # Create a blank canvas for the right side
-    blank_canvas = np.zeros_like(out)
-
-    if yolo_frame is not None:
-        # Resize yolo_frame to match the height of the point cloud output
-        yolo_frame_resized = cv2.resize(yolo_frame, (out.shape[1], out.shape[0]))
+def get_depth(depth_image, bbox, num_samples=100, bin_size=0.01):
+    """Calculate the most representative depth within the bounding box."""
+    x1, y1, x2, y2 = bbox
+    xs = np.random.randint(x1, x2, num_samples)
+    ys = np.random.randint(y1, y2, num_samples)
+    depth_values = depth_image[ys, xs].flatten()
+    valid_depths = depth_values[depth_values > 0] * depth_scale
+    if len(valid_depths) == 0:
+        return None
+    binned_depths = np.round(valid_depths / bin_size) * bin_size
+    mode_result = stats.mode(binned_depths, keepdims=True)
+    if mode_result.count[0] > 1:
+        return mode_result[0][0]
     else:
-        yolo_frame_resized = blank_canvas.copy()
+        return np.median(valid_depths)
+def process_frame(color_image, depth_image, tracked_objects, rotation_matrix, translation_values, depth_intrinsics):
+    global previous_frame
+    moving_objects = []
 
-    # Draw bounding boxes on the point cloud
-    for obj in moving_objects:
-        bbox = obj['bbox']
-        x1, y1, x2, y2 = map(int, bbox)
+    # Convert color image to grayscale for motion detection
+    gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (21, 21), 0)
 
-        # Project bounding box corners to 3D
-        corners_3d = []
-        for x, y in [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]:
-            depth = depth_image[y, x]
-            if depth > 0:
-                z = depth * depth_scale
-                point_3d = np.array([(x - depth_intrinsics.ppx) * z / depth_intrinsics.fx,
-                                     (y - depth_intrinsics.ppy) * z / depth_intrinsics.fy,
-                                     z])
-                corners_3d.append(point_3d)
+    if previous_frame is None:
+        previous_frame = gray
+        return color_image, moving_objects
 
-        # Draw the bounding box on the point cloud
-        if len(corners_3d) == 4:
-            for i in range(4):
-                start = project_point(corners_3d[i], rotation_matrix, translation_values, depth_intrinsics)
-                end = project_point(corners_3d[(i + 1) % 4], rotation_matrix, translation_values, depth_intrinsics)
-                cv2.line(out, start, end, (0, 255, 0), 2)
+    # Compute the absolute difference between frames for motion detection
+    frame_delta = cv2.absdiff(previous_frame, gray)
+    thresh = cv2.threshold(frame_delta, motion_threshold, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.dilate(thresh, None, iterations=2)
+    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Draw the object ID
-        if corners_3d:
-            center_3d = np.mean(corners_3d, axis=0)
-            center_pixel = project_point(center_3d, rotation_matrix, translation_values, depth_intrinsics)
-            cv2.putText(out, f"ID: {obj['id']}", (center_pixel[0], center_pixel[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    motion_mask = np.zeros_like(gray)
 
-    # Combine the point cloud (left) and the YOLO frame or blank canvas (right) side-by-side
-    combined_image = np.hstack((out, yolo_frame_resized))
+    for contour in contours:
+        if cv2.contourArea(contour) > min_area:
+            (x, y, w, h) = cv2.boundingRect(contour)
+            cv2.rectangle(motion_mask, (x, y), (x + w, y + h), 255, -1)
 
-    # Display the combined image in a static window
-    cv2.imshow('Point Cloud and YOLO Detections', combined_image)
+    # Run YOLO to detect objects in the frame
+    results = model.track(color_image, persist=True, verbose=False)
 
-    # Process PyQt5 events
-    app.processEvents()
+    if results[0].boxes is not None:
+        boxes = results[0].boxes.xyxy.cpu().numpy()
+        ids = results[0].boxes.id.cpu().numpy() if results[0].boxes.id is not None else None
+        classes = results[0].boxes.cls.cpu().numpy() if results[0].boxes.cls is not None else None  # Class of objects
 
-    # Handle key press to exit
-    key = cv2.waitKey(1)
-    if key in (27, ord("q")):
-        break
+        for i, box in enumerate(boxes):
+            x1, y1, x2, y2 = map(int, box[:4])  # Extract bounding box coordinates
+            class_id = int(classes[i]) if classes is not None else -1  # Get the class ID
 
-# Stop streaming
-pipeline.stop()
-cv2.destroyAllWindows()
+            # Check if the detected object is a person (YOLO class 0 is typically 'person')
+            if class_id != 0:
+                object_id = int(ids[i]) if ids is not None else i
+                midpoint = ((x1 + x2) // 2, (y1 + y2) // 2)
+
+                depth_value = depth_image[
+                    min(max(midpoint[1], 0), depth_image.shape[0] - 1),
+                    min(max(midpoint[0], 0), depth_image.shape[1] - 1)
+                ]
+                depth_in_meters = depth_value * depth_scale
+
+                if object_id not in tracked_objects:
+                    tracked_objects[object_id] = {
+                        'midpoints': deque(maxlen=window_size),
+                        'depths': deque(maxlen=window_size)
+                    }
+
+                tracked_objects[object_id]['midpoints'].append(midpoint)
+                tracked_objects[object_id]['depths'].append(depth_in_meters)
+
+                avg_midpoint = np.mean(tracked_objects[object_id]['midpoints'], axis=0)
+                avg_depth = np.mean(tracked_objects[object_id]['depths'])
+
+                # Detect if the object is moving by comparing midpoints
+                if len(tracked_objects[object_id]['midpoints']) > 1:
+                    prev_midpoint = tracked_objects[object_id]['midpoints'][-2]
+                    movement = np.linalg.norm(np.array(midpoint) - np.array(prev_midpoint))
+
+                    # Track movement only if it's greater than the threshold
+                    is_moving = movement > movement_threshold
+
+                    # Debugging: Check movement threshold
+                    print(f"Object {object_id}: Movement={movement}, Threshold={movement_threshold}, Moving={is_moving}")
+
+                    # Set color based on whether the object is moving
+                    color = (0, 0, 255) if is_moving else (0, 255, 0)  # Red if moving, Green if not
+
+                    # Draw bounding box around the object
+                    cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)  # Draw rectangle for tracked objects
+
+                # Draw a red circle at the object's midpoint
+                cv2.circle(color_image, (int(avg_midpoint[0]), int(avg_midpoint[1])), 4, (0, 0, 255), -1)
+
+    previous_frame = gray
+
+    return color_image, moving_objects
+
+
+
+def send_filename_to_server(filename):
+    """Send the generated filename to the Pygame server."""
+    host = 'localhost'
+    port = 65432
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((host, port))
+            client_socket.sendall(filename.encode())
+            print(f"Sent filename: {filename}")
+    except ConnectionRefusedError:
+        print("Failed to connect to the server. Is main.py running?")
+
+def get_image(x, y, depth, image_width, image_height):
+    section = min(int((x / image_width) * 42), 41)  # Clamp to 41 max
+    distance = 'c' if depth <= 4 else 'f'  # 'c' for close, 'f' for far
+
+    if y < image_height / 3:
+        position = 'u'  # Upper third
+    elif y > (2 * image_height) / 3:
+        position = 'd'  # Lower third
+    else:
+        position = 's'  # Middle third
+
+    filename = f"bt_{section}_{distance}{position}o.png"
+
+    # Send the filename to main.py
+    send_filename_to_server(filename)
+
+def render_point_cloud_with_midpoints(depth_frame, rotation_matrix, translation_values,
+                                      x_threshold, y_threshold, z_threshold, moving_objects, intrinsics):
+    pc = rs.pointcloud()
+    points = pc.calculate(depth_frame)
+    verts = np.asanyarray(points.get_vertices()).view(np.float32).reshape(-1, 3)
+
+    verts[:, 0] = -verts[:, 0]  # Mirror horizontally
+    verts_transformed = apply_transform(verts, rotation_matrix, translation_values)
+
+    valid_mask = (
+            (np.abs(verts_transformed[:, 0]) < x_threshold) &
+            (np.abs(verts_transformed[:, 1]) < y_threshold) &
+            (verts_transformed[:, 2] < z_threshold)
+    )
+    verts_transformed = verts_transformed[valid_mask]
+
+    x, y, z = verts_transformed[:, 0], verts_transformed[:, 1], verts_transformed[:, 2]
+    u = (x / z) * intrinsics.fx + intrinsics.ppx
+    v = (y / z) * intrinsics.fy + intrinsics.ppy
+    proj = np.vstack((u, v)).transpose().astype(np.int32)
+
+    h, w = intrinsics.height, intrinsics.width
+    mask = (proj[:, 0] >= 0) & (proj[:, 0] < w) & (proj[:, 1] >= 0) & (proj[:, 1] < h)
+    proj, depths = proj[mask], z[mask]
+
+    out = np.zeros((h, w), dtype=np.uint8)
+    if len(depths) > 0:
+        intensity = 255 * (1 - (depths - depths.min()) / (depths.max() - depths.min()))
+        out[proj[:, 1], proj[:, 0]] = intensity.astype(np.uint8)
+
+    out_color = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
+
+    # Filter only moving objects
+    moving_objects = [obj for obj in moving_objects if obj['is_moving']]
+
+    if moving_objects:
+        # Identify the closest moving object by depth
+        closest_object = min(moving_objects, key=lambda obj: obj['midpoint'][2])
+
+        # Draw all objects, highlight the closest in purple
+        for obj in moving_objects:
+            if obj['projected_point']:
+                x_p, y_p = obj['projected_point']
+                if 0 <= x_p < w and 0 <= y_p < h:
+                    if obj == closest_object:
+                        x, y, depth = obj['midpoint']
+                        get_image(x, y, depth, w, h)  # Call with correct values
+                        color = (0, 0, 255)  # red for the closest object
+                    else:
+                        color = (0, 255, 255)  # Yellow for other objects
+
+                    cv2.circle(out_color, (x_p, y_p), 4, color, -1)
+
+    return out_color
+
+
+
+if __name__ == "__main__":
+    try:
+        while True:
+            frames = pipeline.poll_for_frames()
+            if not frames:
+                continue
+            color_frame = frames.get_color_frame()
+            depth_frame = frames.get_depth_frame()
+            if not color_frame or not depth_frame:
+                continue
+            color_image = np.asanyarray(color_frame.get_data())
+
+            # Flip the RGB image horizontally
+            color_image = cv2.flip(color_image, 1)  # 1 = Horizontal Flip
+
+            depth_image = np.asanyarray(depth_frame.get_data())
+
+            # Retrieve rotation, translation, and threshold values from GUI
+            rotation_angles = [math.radians(control_panel.rotation_sliders[i].value()) for i in range(3)]
+            translation_values = [control_panel.translation_sliders[i].value() / 100.0 for i in range(3)]
+            x_threshold = control_panel.threshold_sliders[0].value() / 100.0
+            y_threshold = control_panel.threshold_sliders[1].value() / 100.0
+            z_threshold = control_panel.threshold_sliders[2].value() / 100.0
+
+            rotation_matrix = get_rotation_matrix(rotation_angles)
+
+            # Process YOLO tracking and render the point cloud with midpoints
+            yolo_output, moving_objects = process_frame(
+                color_image.copy(), depth_image, tracked_objects, rotation_matrix, translation_values, depth_intrinsics
+            )
+            point_cloud_output = render_point_cloud_with_midpoints(
+                depth_frame, rotation_matrix, translation_values, x_threshold, y_threshold, z_threshold,
+                moving_objects, depth_intrinsics
+            )
+
+            # Combine both outputs side-by-side
+            combined_frame = np.hstack((yolo_output, point_cloud_output))
+
+            # Display the combined frame
+            cv2.imshow("YOLO + Point Cloud", combined_frame)
+
+            # Process PyQt5 events and handle exit key
+            app.processEvents()
+            if cv2.waitKey(1) in (27, ord('q')):
+                break
+    finally:
+        # Cleanup resources
+        pipeline.stop()
+        cv2.destroyAllWindows()
