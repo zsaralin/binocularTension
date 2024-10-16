@@ -9,10 +9,9 @@ from scipy import stats
 import sys
 from gui import ControlPanel
 import socket
-from main import update_display_image
 
 # Initialize YOLO model
-model = YOLO("yolo11n.pt")
+model = YOLO("yolo/yolov8n.pt")
 model.verbose = False  # Suppress logging
 
 # Configure RealSense streams
@@ -38,11 +37,11 @@ control_panel.show()
 tracked_objects = {}
 
 # Movement threshold (in pixels)
-movement_threshold = 1
+movement_threshold = 5
 window_size = 5  # Moving average window size
 
 # Motion detection parameters
-motion_threshold = 1  # Threshold for frame differencing
+motion_threshold = 25  # Threshold for frame differencing
 min_area = 500  # Minimum area of contours to be considered motion
 
 # Initialize previous frame for motion detection
@@ -108,7 +107,7 @@ def process_frame(color_image, depth_image, tracked_objects, rotation_matrix, tr
         previous_frame = gray
         return color_image, moving_objects
 
-    # Compute the absolute difference between frames for motion detection
+    # Compute the absolute difference between frames
     frame_delta = cv2.absdiff(previous_frame, gray)
     thresh = cv2.threshold(frame_delta, motion_threshold, 255, cv2.THRESH_BINARY)[1]
     thresh = cv2.dilate(thresh, None, iterations=2)
@@ -121,20 +120,15 @@ def process_frame(color_image, depth_image, tracked_objects, rotation_matrix, tr
             (x, y, w, h) = cv2.boundingRect(contour)
             cv2.rectangle(motion_mask, (x, y), (x + w, y + h), 255, -1)
 
-    # Run YOLO to detect objects in the frame
     results = model.track(color_image, persist=True, verbose=False)
 
     if results[0].boxes is not None:
         boxes = results[0].boxes.xyxy.cpu().numpy()
         ids = results[0].boxes.id.cpu().numpy() if results[0].boxes.id is not None else None
-        classes = results[0].boxes.cls.cpu().numpy() if results[0].boxes.cls is not None else None  # Class of objects
 
         for i, box in enumerate(boxes):
-            x1, y1, x2, y2 = map(int, box[:4])  # Extract bounding box coordinates
-            class_id = int(classes[i]) if classes is not None else -1  # Get the class ID
-
-            # Check if the detected object is a person (YOLO class 0 is typically 'person')
-            if class_id != 0:
+            x1, y1, x2, y2 = map(int, box[:4])
+            if np.any(motion_mask[y1:y2, x1:x2] > 0):
                 object_id = int(ids[i]) if ids is not None else i
                 midpoint = ((x1 + x2) // 2, (y1 + y2) // 2)
 
@@ -156,31 +150,38 @@ def process_frame(color_image, depth_image, tracked_objects, rotation_matrix, tr
                 avg_midpoint = np.mean(tracked_objects[object_id]['midpoints'], axis=0)
                 avg_depth = np.mean(tracked_objects[object_id]['depths'])
 
-                # Detect if the object is moving by comparing midpoints
                 if len(tracked_objects[object_id]['midpoints']) > 1:
                     prev_midpoint = tracked_objects[object_id]['midpoints'][-2]
                     movement = np.linalg.norm(np.array(midpoint) - np.array(prev_midpoint))
 
-                    # Track movement only if it's greater than the threshold
+                    # Track only if movement > movement_threshold
                     is_moving = movement > movement_threshold
 
-                    # Debugging: Check movement threshold
-                    print(f"Object {object_id}: Movement={movement}, Threshold={movement_threshold}, Moving={is_moving}")
+                    if is_moving:
+                        print(f"Object {object_id} moved to: {avg_midpoint}, Depth: {avg_depth:.3f}m")
 
-                    # Set color based on whether the object is moving
-                    color = (0, 0, 255) if is_moving else (0, 255, 0)  # Red if moving, Green if not
+                        x, y, z = convert_depth_pixel_to_metric_coordinate(
+                            avg_depth, avg_midpoint[0], avg_midpoint[1], depth_intrinsics
+                        )
+                        transformed_midpoint = apply_transform(
+                            np.array([[x, y, z]]), rotation_matrix, translation_values
+                        )[0]
+                        projected_point = project_to_2d(transformed_midpoint, depth_intrinsics)
 
-                    # Draw bounding box around the object
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)  # Draw rectangle for tracked objects
+                        moving_objects.append({
+                            'id': object_id,
+                            'midpoint': (avg_midpoint[0], avg_midpoint[1], avg_depth),
+                            'bbox': (x1, y1, x2, y2),
+                            'projected_point': projected_point,
+                            'is_moving': is_moving  # Add movement status
+                        })
 
-                # Draw a red circle at the object's midpoint
+                cv2.rectangle(color_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.circle(color_image, (int(avg_midpoint[0]), int(avg_midpoint[1])), 4, (0, 0, 255), -1)
 
     previous_frame = gray
 
     return color_image, moving_objects
-
-
 
 def send_filename_to_server(filename):
     """Send the generated filename to the Pygame server."""
