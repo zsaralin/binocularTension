@@ -3,7 +3,11 @@ import torch
 from ultralytics import YOLO
 import pyrealsense2 as rs
 import numpy as np
+import os
+from ultralytics import YOLO
 
+# Set YOLO to quiet mode
+os.environ['YOLO_VERBOSE'] = 'False'
 # Load YOLOv8n-pose model (you can replace this with a larger YOLO model if needed)
 model = YOLO('yolo11n-pose.pt')  # Make sure you have the YOLOv8n-pose.pt file
 model.verbose = False  # Suppress logging
@@ -29,7 +33,7 @@ try:
         frame = np.asanyarray(color_frame.get_data())
 
         # Run YOLOv8 pose estimation
-        results = model(frame)
+        results = model(frame, verbose=False)
 
         # Plot results (draw keypoints and skeletons on the frame)
         annotated_frame = results[0].plot()  # YOLOv8 automatically draws keypoints

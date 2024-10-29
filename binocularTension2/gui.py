@@ -56,8 +56,8 @@ class ControlPanel(QWidget):
             slider_layout.addWidget(label)
 
             slider = QSlider(Qt.Horizontal)
-            slider.setMinimum(-500)
-            slider.setMaximum(500)
+            slider.setMinimum(-3000)
+            slider.setMaximum(3000)
             slider.setValue(self.config.get(f'translate_{self.translation_labels[i][-1].lower()}', 0))  # Set from config
             slider.setTickPosition(QSlider.TicksBelow)
             slider.setTickInterval(10)
@@ -65,7 +65,7 @@ class ControlPanel(QWidget):
             slider_layout.addWidget(slider)
 
             spinbox = QSpinBox()
-            spinbox.setRange(-500, 500)
+            spinbox.setRange(-3000, 3000)
             spinbox.setValue(slider.value())
             spinbox.valueChanged.connect(lambda value, s=slider: s.setValue(value))
             self.translation_spinboxes.append(spinbox)
@@ -128,7 +128,6 @@ class ControlPanel(QWidget):
                 "x_threshold": 5.0,
                 "y_threshold": 5.0,
                 "z_threshold": 1.4,
-                "movement_threshold": 10
             }
 
     def save_config(self):
@@ -143,7 +142,6 @@ class ControlPanel(QWidget):
             "x_threshold": self.threshold_sliders[0].value(),
             "y_threshold": self.threshold_sliders[1].value(),
             "z_threshold": self.threshold_sliders[2].value(),
-            "movement_threshold": self.threshold_sliders[3].value()
         }
 
         # Write the config to a JSON file

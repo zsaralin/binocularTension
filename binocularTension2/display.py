@@ -1,167 +1,175 @@
+import sys
 import os
 import socket
 import threading
-import time
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtGui import QScreen
 import random
-from PIL import Image, ImageOps
-import pygame
 
-# Global variables for screen, images, cooldown tracking, and blinking
-screen = None
-images = None
-last_update_time = 0  # Track the last update time
-current_filename = "bt_20_cso.png"  # Default filename to keep track of the current image
-blinking = False  # Track whether we're in a blinking state
+def get_largest_display():
+    app = QApplication.instance() or QApplication(sys.argv)
+    # Get all available screens
+    screens = app.screens()
+    largest_screen = min(screens, key=lambda screen: screen.size().width() * screen.size().height())
+    return largest_screen
 
-def load_and_compress_images(directory, width, height):
-    """Load and compress all images to the fixed size."""
-    compressed_images = []
-    for root, _, files in os.walk(directory):
-        for file in files:
-            if file.endswith('.png'):
-                try:
-                    image = Image.open(os.path.join(root, file))
-                    resized_image = ImageOps.fit(image, (width, height))
-                    compressed_images.append((resized_image, file))  # Store filename
-                except Exception as e:
-                    print(f"Error loading {file}: {e}")
-    return compressed_images
 
-def display_image_by_filename(screen, images, filename):
-    """Display the image matching the given filename."""
-    for image, img_filename in images:
-        if filename in img_filename:
-            mode = image.mode
-            size = image.size
-            data = image.tobytes()
-            image_surface = pygame.image.fromstring(data, size, mode)
+class FullScreenBlinkApp(QWidget):
+    # Define a custom signal to update the image safely from another thread
+    update_image_signal = pyqtSignal(str)
 
-            screen.fill((0, 0, 0))  # Clear screen
-            screen.blit(image_surface, (0, 0))  # Display at top-left corner
-            pygame.display.flip()
-            print(f"Displayed: {filename}")
-            return
+    def __init__(self, image_folder):
+        super().__init__()
+        self.image_folder = image_folder
+        self.label = QLabel(self)
 
-    print(f"Image {filename} not found.")
+        # Initialize with filename 'bt_20_cso.png'
+        self.current_filename = "bt_20_cso.png"
+        self.is_blinking = False  # Track if a blink cycle is in progress
+        self.received_recently = False  # Track if an image was received after a gap of 5+ seconds
 
-def update_display_image(filename):
-    """Update the displayed image when a filename is received, with a cooldown and a special transition."""
-    global last_update_time, current_filename, blinking
+        # Get the largest display and set up the full-screen window
+        largest_screen = get_largest_display()
+        self.move(largest_screen.geometry().x(), largest_screen.geometry().y())
 
-    # Get the current time
-    current_time = time.time()
+        # Set window flags for full-screen mode
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.showFullScreen()
 
-    # Cooldown period of 0.5 seconds (500 milliseconds)
-    cooldown = 0.5
-    # Idle period check: Has it been at least 2 seconds since the last update?
-    idle_period = 2
+        # Initialize a list for storing image filenames and load them
+        self.image_filenames = []
+        self.images = {}
+        self.load_images()
 
-    # Check if enough time has passed since the last update
-    if current_time - last_update_time >= cooldown:
-        # If it's been idle for 2 or more seconds, apply the transition effect (o -> s -> o)
-        if current_time - last_update_time >= idle_period:
-            # Temporary transition to 's' for half a second
-            temp_filename = filename[:-5] + 'w' + filename[-4:]  # Change last 'o' to 'w'
-            if images and screen:
-                display_image_by_filename(screen, images, temp_filename)
-                time.sleep(0.5)  # Show 's' for half a second
+        # Timers for blinking and no image received detection
+        self.blink_timer = QTimer(self)
+        self.blink_timer.timeout.connect(self.simulate_blink)
 
-        # Revert to the original filename ending with 'o'
-        current_filename = filename
-        display_image_by_filename(screen, images, current_filename)  # Display the final image with 'o'
-        last_update_time = current_time  # Update the last update time
-        blinking = False  # Stop blinking if we receive an update
-    else:
-        print("Update skipped due to cooldown.")
+        self.no_image_timer = QTimer(self)
+        self.no_image_timer.setSingleShot(True)
+        self.no_image_timer.timeout.connect(self.start_blinking)
 
-def start_server():
-    """Socket server to listen for filename updates in a separate thread."""
-    host = 'localhost'
-    port = 65432
+        # Display the initial image (starting at 'bt_20_cso.png')
+        self.display_image(self.current_filename)
 
-    def listen_for_filenames():
-        """Background thread to listen for filenames."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-            server_socket.bind((host, port))
-            server_socket.listen()
-            print(f"Server listening on {host}:{port}")
+        # Start the no_image_timer to begin the countdown for blinking after 5 seconds of no image received
+        self.no_image_timer.start(5000)  # Start the timer when the app launches
 
-            while True:
-                conn, addr = server_socket.accept()
-                with conn:
-                    data = conn.recv(1024).decode()  # Receive the filename
-                    if data:
-                        print(f"Received filename: {data}")
-                        update_display_image(data)
+        # Connect the signal to the slot
+        self.update_image_signal.connect(self.update_display_image)
 
-    # Start the background thread
-    thread = threading.Thread(target=listen_for_filenames, daemon=True)
-    thread.start()
+    def display_image(self, filename):
+        """Display the image based on the given filename."""
+        image_path = os.path.join(self.image_folder, filename)
+        if os.path.exists(image_path):
+            pixmap = QPixmap(image_path)
+            self.label.setPixmap(pixmap)
+            self.label.setFixedSize(pixmap.size())
+            self.setFixedSize(pixmap.size())
+            self.current_filename = filename  # Update current filename
+        else:
+            print(f"Image not found: {image_path}")
 
-def simulate_blinking():
-    """Simulate blinking after 2-5 seconds of no updates."""
-    global last_update_time, current_filename, blinking
+    def load_images(self):
+        """Load all images in the folder and store them in a dictionary."""
+        for filename in os.listdir(self.image_folder):
+            if filename.endswith(".png"):  # Assuming images are in PNG format
+                image_path = os.path.join(self.image_folder, filename)
+                pixmap = QPixmap(image_path)
+                self.image_filenames.append(filename)
+                self.images[filename] = pixmap
 
-    while True:
-        # Wait for a random time between 2 and 5 seconds
-        time.sleep(random.uniform(2, 5))
+        # Display the first image once all images are loaded
+        if self.image_filenames:
+            self.current_filename = self.image_filenames[0]
+            self.display_image(self.current_filename)
 
-        # Check if the time since the last update exceeds the threshold
-        if not blinking and time.time() - last_update_time > 2:  # If no updates for 2+ seconds
-            blinking = True  # Start the blinking sequence
+    def start_blinking(self):
+        """Start the blinking cycle if no new image has been received for 5 seconds."""
+        self.blink_timer.start(5000)  # Start blinking every 5 seconds
 
-            # Start blinking sequence
-            if images and screen:
-                # Modify the third-to-last character of the filename to simulate blinking
-                base_filename = current_filename[:-7]  # Remove the 'c' and 'o.png'
-                third_last_char = current_filename[-7]  # This will be 'c' to change to 'f'
+    def stop_blinking(self):
+        """Stop the blinking cycle when a new filename is received."""
+        self.blink_timer.stop()
 
-                # Create filenames for blinking by replacing the third-to-last character with 'f'
-                blink_filename_f = f"{base_filename}f" + current_filename[-6:]  # Change 'c' to 'f'
+    def simulate_blink(self):
+        """Simulate blinking sequence."""
+        if self.current_filename:
+            self.is_blinking = True  # Indicate a blink cycle is in progress
+            copy = self.current_filename
+            # Modify the third-to-last character of the filename to simulate blinking
+            base_filename = self.current_filename[:-7]  # Remove the 'c' and 'o.png'
+            blink_filename_f = f"{base_filename}f" + self.current_filename[-6:]  # Change 'c' to 'f'
 
-                display_image_by_filename(screen, images, blink_filename_f.replace('o', 'h'))  # Half-open
-                time.sleep(0.2)  # Pause for 200 ms
-                display_image_by_filename(screen, images, blink_filename_f.replace('o', 'c'))  # Closed
-                time.sleep(0.2)  # Pause for 200 ms
-                display_image_by_filename(screen, images, blink_filename_f.replace('o', 'h'))  # Half-open
-                time.sleep(0.2)  # Pause for 200 ms
-                display_image_by_filename(screen, images, current_filename)  # Return to original
+            # Start blinking sequence (half-open -> closed -> half-open -> open)
+            self.display_image(blink_filename_f.replace('o', 'h'))  # Half-open
+            QTimer.singleShot(100, lambda: self.display_image(blink_filename_f.replace('o', 'c')))  # Closed
+            QTimer.singleShot(300, lambda: self.display_image(blink_filename_f.replace('o', 'h')))  # Half-open
+            QTimer.singleShot(400, lambda: self.end_blinking(copy))  # Back to open state
 
-def main():
-    global screen, images
+    def end_blinking(self, original_image):
+        """End blinking and optionally update to a new image."""
+        self.display_image(original_image)
+        self.is_blinking = False  # Mark blink cycle as finished
 
-    image_width = 1920
-    image_height = 540
+    def start_server_thread(self, host, port):
+        """Start a background thread to listen for filename updates."""
+        def listen_for_filenames():
+            """Background thread to listen for filenames from the server."""
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+                server_socket.bind((host, port))
+                server_socket.listen()
+                print(f"Server listening on {host}:{port}")
 
-    pygame.init()
-    screen = pygame.display.set_mode((image_width, image_height))
+                while True:
+                    conn, addr = server_socket.accept()
+                    with conn:
+                        data = conn.recv(1024).decode()  # Receive the filename
+                        if data:
+                            print(f"Received filename: {data}")
+                            # Emit the signal to update the image in the main thread
+                            self.update_image_signal.emit(data)
 
-    images = load_and_compress_images('eyeballImages_738', image_width, image_height)
-    if not images:
-        print("No images found.")
-        return
+        # Start the background thread for listening
+        thread = threading.Thread(target=listen_for_filenames, daemon=True)
+        thread.start()
 
-    print(f"Loaded {len(images)} images.")
-    display_image_by_filename(screen, images, current_filename)  # Display default image
+    def update_display_image(self, filename):
+        """Update the displayed image from the server and reset timers."""
+        if self.is_blinking:
+            # If mid-blink, wait until blink is done before changing the image
+            QTimer.singleShot(600, lambda: self.check_and_update_image(filename))
+        else:
+            self.check_and_update_image(filename)
 
-    # Start the server to listen for filename updates in the background
-    start_server()
+    def check_and_update_image(self, filename):
+        """Update image, check for recent receipt, and handle the 'w' character change."""
+        if self.no_image_timer.remainingTime() <= 0 and random.random() < .5:
+            # If it's been more than 5 seconds since the last image, change 'o' to 'w'
+            filename = filename.replace('o.png', 'w.png')
+            self.display_image(filename)
+            QTimer.singleShot(3000, lambda: self.display_image(filename.replace('w.png', 'o.png')))  # Revert after 2s
+        else:
+            # Simply display the new image
+            self.display_image(filename)
 
-    # Start the blinking mechanism in a separate thread
-    blink_thread = threading.Thread(target=simulate_blinking, daemon=True)
-    blink_thread.start()
+        # Restart the 5-second timer for detecting image gaps
+        self.no_image_timer.start(5000)
 
-    # Event loop to keep the window open until the user closes it
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:  # If the window close button is pressed
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:  # Press ESC to exit
-                    running = False
-
-    pygame.quit()
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+
+    # Path to the folder with images
+    image_folder = "./eyeballImages_738_noise"
+
+    # Initialize and display the full-screen blink app
+    window = FullScreenBlinkApp(image_folder)
+
+    # Start the server thread to listen for incoming filenames
+    window.start_server_thread('localhost', 65432)
+
+    # Start the application event loop
+    sys.exit(app.exec_())

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f0a042a9-6000-43a3-b911-6d1beeb25c5f" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/binocularTension2/active_movement_logic.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/add_noise.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/drawing_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fdc.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fsc.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fuc.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/headpoint_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/movement_detection.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud_og.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud_view.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/select_filename.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/transform_utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/binocularTension2/yolo-pose.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension1/yolo-pose.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension1/yolo-pose.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension2/config.json" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/config.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension2/display.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/display.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension2/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/gui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension2/pointCloud.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension2/selectFilename.py" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FlaskConsoleOptions" custom-start-script="import sys&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo&#10;locals().update(ScriptInfo(create_app=None).load_app().make_shell_context())&#10;print(&quot;Python %s on %s\nApp: %s [%s]\nInstance: %s&quot; % (sys.version, sys.platform, app.import_name, app.env, app.instance_path))">
+    <envs>
+      <env key="FLASK_APP" value="app" />
+    </envs>
+    <option name="myCustomStartScript" value="import sys&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo&#10;locals().update(ScriptInfo(create_app=None).load_app().make_shell_context())&#10;print(&quot;Python %s on %s\nApp: %s [%s]\nInstance: %s&quot; % (sys.version, sys.platform, app.import_name, app.env, app.instance_path))" />
+    <option name="myEnvs">
+      <map>
+        <entry key="FLASK_APP" value="app" />
+      </map>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
+  <component name="ProjectId" id="2mA9WtjJuZkHOMFroHZ8LjwUvFW" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "C:/Users/admin/IdeaProjects/realSenseTesting/binocularTension2/eyeballImages_738",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2\eyeballImages_738" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2\eyeballImages_7380" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension1" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension\sdsad" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2\yolo" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension1" />
+      <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension\images" />
+    </key>
+  </component>
+  <component name="RunManager">
+    <configuration name="index.html" type="JavascriptDebugType" temporary="true" nameIsGenerated="true" uri="http://localhost:63342/realSenseTesting/index.html" useBuiltInWebServerPort="true">
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="JavaScript Debug.index.html" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f0a042a9-6000-43a3-b911-6d1beeb25c5f" name="Changes" comment="" />
+      <created>1726508558879</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1726508558879</updated>
+      <workItem from="1726508559924" duration="13652000" />
+      <workItem from="1726586149258" duration="1347000" />
+      <workItem from="1726587524598" duration="98000" />
+      <workItem from="1726595825983" duration="99000" />
+      <workItem from="1726596226176" duration="839000" />
+      <workItem from="1726597161576" duration="8504000" />
+      <workItem from="1726666096722" duration="37750000" />
+      <workItem from="1727099343072" duration="10000" />
+      <workItem from="1727111142151" duration="27320000" />
+      <workItem from="1727270662933" duration="4399000" />
+      <workItem from="1727275521612" duration="39127000" />
+      <workItem from="1727712897592" duration="26000" />
+      <workItem from="1728998195571" duration="28000" />
+      <workItem from="1728999346569" duration="111679000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

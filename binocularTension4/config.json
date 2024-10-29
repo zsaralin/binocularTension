@@ -1,0 +1,15 @@
+{
+    "rotate_x": -50,
+    "rotate_y": 0,
+    "rotate_z": 0,
+    "translate_x": 0,
+    "translate_y": 2.4,
+    "translate_z": -2.7,
+    "y_top_divider": 5,
+    "y_bottom_divider": 5,
+    "x_divider_angle": 37,
+    "z_divider": 0.9,
+    "z_divider_curve": 4,
+    "min_contour_area": 500,
+    "person_movement_thres": 0.05
+}
