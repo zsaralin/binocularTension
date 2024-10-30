@@ -1,34 +1,53 @@
-from PyQt5.QtGui import QColor, QPalette
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget, QHBoxLayout
+from PyQt5.QtGui import QColor, QPalette, QPixmap, QPainter, QPen
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QWidget, QHBoxLayout, QSizePolicy
+from PyQt5.QtCore import Qt
 
 class RGBLegendWidget(QWidget):
-    """A widget to display the point cloud legend below the GLWidget."""
+    """A widget to visually display the line style and color legend for movement."""
 
     def __init__(self, parent=None):
         super(RGBLegendWidget, self).__init__(parent)
         layout = QVBoxLayout()
 
-        # Legend items
-        self.add_legend_item(layout, "Active & Moving Person", QColor(0, 255, 0))         # Green
-        self.add_legend_item(layout, "Active & Stationary Person", QColor(255, 0, 255))   # Magenta
-        self.add_legend_item(layout, "Non-Active & Stationary Person", QColor(255, 255, 0))  # Yellow
-        self.add_legend_item(layout, "Active Moving Object", QColor(0, 180, 0))           # Dark Green
-        self.add_legend_item(layout, "Non-Active Moving Object/Person", QColor(255, 0, 0))       # Red
+        # Add legend items with solid and dotted line representations
+        self.add_legend_item(layout, "Active & Moving", QColor(0, 255, 0), solid=True)   # Green solid line
+        self.add_legend_item(layout, "Active & Stationary", QColor(0, 255, 0), solid=False)  # Green dotted line
+        self.add_legend_item(layout, "Non-Active Moving Object/Person", QColor(255, 0, 0), solid=True)  # Red solid line
+        self.add_legend_item(layout, "Non-Active Stationary Person", QColor(255, 0, 0), solid=False)  # White dotted line
+        self.add_legend_item(layout, "Other Moving", QColor(255, 0, 0), solid=True)  # Red solid line for other moving
+
         # Set layout and spacing
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setLayout(layout)
-        self.setMinimumHeight(80)  # Prevent squishing when resizing
 
-    def add_legend_item(self, layout, text, color):
-        """Helper function to create a color legend item."""
+    def add_legend_item(self, layout, text, color, solid=True):
+        """Helper function to create a color legend item with a line style."""
         item_layout = QHBoxLayout()
-        color_label = QLabel()
-        color_label.setFixedSize(10, 10)
-        color_palette = color_label.palette()
-        color_palette.setColor(QPalette.Window, color)
-        color_label.setAutoFillBackground(True)
-        color_label.setPalette(color_palette)
 
+        # Create a QLabel to represent the line style (solid or dotted)
+        line_label = QLabel()
+        line_label.setFixedSize(30, 10)
+        pixmap = QPixmap(30, 10)
+        pixmap.fill(Qt.transparent)
+        
+        painter = QPainter(pixmap)
+        pen = QPen(color)
+        pen.setWidth(2)
+        
+        # Set line style
+        if solid:
+            pen.setStyle(Qt.SolidLine)
+        else:
+            pen.setStyle(Qt.DotLine)
+
+        painter.setPen(pen)
+        painter.drawLine(0, 5, 30, 5)
+        painter.end()
+
+        line_label.setPixmap(pixmap)
+
+        # Add color description label
         label = QLabel(text)
-        item_layout.addWidget(color_label)
+        item_layout.addWidget(line_label)
         item_layout.addWidget(label)
         layout.addLayout(item_layout)

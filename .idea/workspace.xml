@@ -5,26 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f0a042a9-6000-43a3-b911-6d1beeb25c5f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/binocularTension2/active_movement_logic.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/add_noise.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/drawing_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fdc.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fsc.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/eyeballImages_738/bt_0_fuc.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/headpoint_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/movement_detection.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud_og.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/point_cloud_view.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/select_filename.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/transform_utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binocularTension2/yolo-pose.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension1/yolo-pose.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension1/yolo-pose.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension2/config.json" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension2/display.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/display.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension2/gui.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension2/gui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension2/pointCloud.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/binocularTension2/selectFilename.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension4/active_movement_logic.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension4/active_movement_logic.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension4/display.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension4/display.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension4/headpoint_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension4/headpoint_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension4/pointcloud_drawing_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension4/pointcloud_drawing_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/binocularTension4/select_image.py" beforeDir="false" afterPath="$PROJECT_DIR$/binocularTension4/select_image.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,22 +41,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/admin/IdeaProjects/realSenseTesting/binocularTension2/eyeballImages_738",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/admin/IdeaProjects/realSenseTesting/binocularTension2/eyeballImages_738&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\admin\IdeaProjects\realSenseTesting\binocularTension2\eyeballImages_738" />
@@ -120,6 +105,7 @@
       <workItem from="1727712897592" duration="26000" />
       <workItem from="1728998195571" duration="28000" />
       <workItem from="1728999346569" duration="111679000" />
+      <workItem from="1730222756165" duration="148000" />
     </task>
     <servers />
   </component>

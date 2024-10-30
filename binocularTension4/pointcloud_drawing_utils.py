@@ -12,35 +12,107 @@ from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout
 from transformation_utils import apply_dynamic_transformation
 from rgb_drawing_utils import KEYPOINT_CONNECTIONS
 from live_config import LiveConfig
-
+import random
 def draw_vertical_dividers(height=2.0, depth=30.0, center_x=0, camera_z=0):
-    """Draw multiple vertical wireframe planes starting from the camera's z position, using x_divider_angle."""
+    """Draw multiple vertical dividers with filled gaps of random colors between each wireframe, converging from the camera's position."""
     # Access the LiveConfig instance
     live_config = LiveConfig.get_instance()
-    # Get x_divider_angle from control_panel's divider configuration
     x_divider_angle = live_config.x_divider_angle
-    
-    # Angles for the dividers using x_divider_angle
+
+    # Define angles for the dividers
     angles = [i * (2 * x_divider_angle / 41) - x_divider_angle for i in range(42)]
-
-    # Loop through the angles and draw a divider for each angle
-    for angle in angles:
-        glPushMatrix()  # Save the current matrix
-        glColor3f(0.5, 0.5, 0.5)  # Light gray color
-
-        # Translate to the starting position and rotate around the Y-axis
+    
+    # Draw each divider plane with filled gaps between each pair
+    for i in range(len(angles) - 1):        
+        angle1, angle2 = math.radians(angles[i]), math.radians(angles[i + 1])
+        
+        # Calculate the x-coordinates at the depth for each angle
+        x1_far = depth * math.sin(angle1)
+        x2_far = depth * math.sin(angle2)
+        
+        glPushMatrix()
         glTranslatef(center_x, 0, camera_z)
-        glRotatef(angle, 0, 1, 0)  # Rotate by the current angle around the Y-axis
-
-        # Draw the vertical plane
+        
+        # Draw the first wireframe plane
+        glColor3f(0.5, 0.5, 0.5)  # Light gray color for wireframes
         glBegin(GL_LINE_LOOP)
-        glVertex3f(0.0, -height / 2, 0.0)  # Bottom-left (closer to camera)
-        glVertex3f(0.0, -height / 2, -depth)  # Bottom-right (farther from camera)
-        glVertex3f(0.0, height / 2, -depth)  # Top-right
-        glVertex3f(0.0, height / 2, 0.0)  # Top-left
+        glVertex3f(0.0, -height / 2, 0.0)
+        glVertex3f(0.0, height / 2, 0.0)
+        glVertex3f(x1_far, height / 2, -depth)
+        glVertex3f(x1_far, -height / 2, -depth)
         glEnd()
+        
+        # Draw the second wireframe plane
+        glBegin(GL_LINE_LOOP)
+        glVertex3f(0.0, -height / 2, 0.0)
+        glVertex3f(0.0, height / 2, 0.0)
+        glVertex3f(x2_far, height / 2, -depth)
+        glVertex3f(x2_far, -height / 2, -depth)
+        glEnd()
+    
+        
+        glPopMatrix()
+def fill_divider(index_to_fill, height=2.0, depth=30.0, center_x=0, camera_z=0):
+    """Fill only the space between two adjacent dividers at index_to_fill with a 3D transparent green object."""
+    # Access the LiveConfig instance
+    live_config = LiveConfig.get_instance()
+    x_divider_angle = live_config.x_divider_angle
 
-        glPopMatrix()  # Restore the previous matrix
+    # Define the fixed angle step based on 41 dividers
+    angle_step = 2 * x_divider_angle / 41
+
+    # Calculate angles for the specified divider and the next one to the right
+    angle1 = -x_divider_angle + index_to_fill * angle_step
+    angle2 = angle1 + angle_step
+
+    glPushMatrix()
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glColor4f(0.0, 1.0, 0.0, 0.3)  # Transparent green color
+
+    # Begin drawing the trapezoidal prism as a 3D object for only the specified space
+    glBegin(GL_QUADS)
+
+    # Front face (near the camera, converging to center)
+    glVertex3f(center_x, -height / 2, camera_z)
+    glVertex3f(center_x, height / 2, camera_z)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
+
+    # Back face (far end of the gap)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), -height / 2, camera_z - depth)
+
+    # Left side (angle1)
+    glVertex3f(center_x, -height / 2, camera_z)
+    glVertex3f(center_x, height / 2, camera_z)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
+
+    # Right side (angle2)
+    glVertex3f(center_x, -height / 2, camera_z)
+    glVertex3f(center_x, height / 2, camera_z)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), -height / 2, camera_z - depth)
+
+    # Top side (between angle1 and angle2)
+    glVertex3f(center_x, height / 2, camera_z)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
+    glVertex3f(center_x, height / 2, camera_z)
+
+    # Bottom side (between angle1 and angle2)
+    glVertex3f(center_x, -height / 2, camera_z)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
+    glVertex3f(center_x + depth * math.sin(math.radians(angle2)), -height / 2, camera_z - depth)
+    glVertex3f(center_x, -height / 2, camera_z)
+
+    glEnd()
+
+    glDisable(GL_BLEND)
+    glPopMatrix()
 
 def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0):
     """

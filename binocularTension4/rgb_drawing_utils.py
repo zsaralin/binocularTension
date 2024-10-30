@@ -12,7 +12,7 @@ KEYPOINT_CONNECTIONS = [
 ]
 
 def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active_movement_id, active_movement_type):
-    """Draw bounding boxes around detected people and color them based on movement and active status."""
+    """Draw bounding boxes around detected people with solid lines for moving persons and dotted lines for stationary ones."""
     for track in tracks:
         if not track.is_confirmed():
             continue
@@ -20,22 +20,25 @@ def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active
         ltrb = track.to_ltrb()
         x1, y1, x2, y2 = map(int, ltrb)
 
-        # Check if this person is the active movement
+        # Determine color and line style based on movement status
         if active_movement_type == 'person' and track_id == active_movement_id:
-            # If the active person is moving, color green, otherwise magenta
-            if person_moving_status.get(track_id, False):
-                bbox_color = (0, 255, 0)  # Green for active and moving person
-            else:
-                bbox_color = (255, 0, 255)  # Magenta for active but not moving person
+            bbox_color = (0, 255, 0)  # Green for active person
         else:
-            # Choose color based on moving status for non-active persons
-            if person_moving_status.get(track_id, False):
-                bbox_color = (0, 0, 255)  # Red for moving person
-            else:
-                bbox_color = (0, 255, 255)  # Yellow for stationary person
+            bbox_color = (0, 0, 255)  # Red for non-active persons
 
-        # Draw the bounding box and the track ID
-        cv2.rectangle(color_image, (x1, y1), (x2, y2), bbox_color, 2)
+        if person_moving_status.get(track_id, False):
+            # Draw solid bounding box for moving person
+            cv2.rectangle(color_image, (x1, y1), (x2, y2), bbox_color, 2)
+        else:
+            # Draw dotted bounding box for stationary person
+            for i in range(x1, x2, 15):  # Top edge
+                cv2.line(color_image, (i, y1), (min(i + 5, x2), y1), bbox_color, 2)
+            for i in range(x1, x2, 15):  # Bottom edge
+                cv2.line(color_image, (i, y2), (min(i + 5, x2), y2), bbox_color, 2)
+            for i in range(y1, y2, 15):  # Left edge
+                cv2.line(color_image, (x1, i), (x1, min(i + 5, y2)), bbox_color, 2)
+            for i in range(y1, y2, 15):  # Right edge
+                cv2.line(color_image, (x2, i), (x2, min(i + 5, y2)), bbox_color, 2)
 
 def draw_movement_boxes(non_person_movement_boxes, color_image, active_movement_id, active_movement_type):
     """Draw boxes for the provided tracked objects on the color_image, highlighting the active one."""

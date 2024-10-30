@@ -24,7 +24,7 @@ def get_average_depth(depth_image, x, y, depth_scale, window_size=5):
         return 0  # No valid depth in the window
     return np.mean(valid_depths) * depth_scale
 
-def smooth_point(new_point, previous_point, alpha=0.8):
+def smooth_point(new_point, previous_point, alpha=0):
     """Apply exponential moving average to smooth points."""
     if previous_point is None:
         return new_point

@@ -134,7 +134,7 @@ class FullScreenBlinkApp(QWidget):
             if event.key() == Qt.Key_Left:
                 xpos = max(xpos - 1, 0)
             elif event.key() == Qt.Key_Right:
-                xpos = min(xpos + 1, 41)
+                xpos = min(xpos + 1, 201)
             elif event.key() == Qt.Key_Up:
                 # Logic for 'up' key to update ypos
                 if ypos == 's':
@@ -178,7 +178,7 @@ class FullScreenBlinkApp(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folder = "./eyeballImages_738_noise"
+    image_folder = "./eyeballImages/201"
     window = FullScreenBlinkApp(image_folder)
     window.start_server_thread('localhost', 65432)
     sys.exit(app.exec_())

@@ -10,6 +10,15 @@
     "x_divider_angle": 37,
     "z_divider": 0.9,
     "z_divider_curve": 4,
+    "draw_planes": true,
     "min_contour_area": 500,
-    "person_movement_thres": 0.05
+    "person_movement_thres": 0.01,
+    "point_size": 5,
+    
+    "z_threshold_min": -15,
+    "z_threshold_max": 0,
+    "x_threshold_min": 0,
+    "x_threshold_max": 50,
+    "y_threshold_min": 0,
+    "y_threshold_max": 50
 }

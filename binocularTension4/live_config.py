@@ -21,9 +21,16 @@ class LiveConfig:
         self.x_divider_angle = 0
         self.z_divider = 0
         self.z_divider_curve = 0
+        self.draw_planes = True
         self.min_contour_area = 500  # Default for minimum contour area
         self.person_movement_thres = 0.01  # Default threshold for person movement
-
+        self.point_size = 1  # Default threshold for person movement
+        self.z_threshold_min= 0
+        self.z_threshold_max= 6.0
+        self.x_threshold_min= 0
+        self.x_threshold_max= 0
+        self.y_threshold_min= 0
+        self.y_threshold_max= 0
 
 
     # Accessor for the singleton instance

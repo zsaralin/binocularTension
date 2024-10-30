@@ -16,8 +16,8 @@ class PCLegendWidget(QWidget):
 
         # Set layout and spacing
         self.setLayout(layout)
-        self.setMinimumHeight(80)  # Prevent squishing when resizing
-
+        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.setLayout(layout)
     def add_legend_item(self, layout, text, color):
         """Helper function to create a color legend item."""
         item_layout = QHBoxLayout()

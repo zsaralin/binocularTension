@@ -21,7 +21,6 @@ from headpoint_utils import compute_general_head_points, compute_movement_points
 from active_movement_logic import update_active_movement
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
-
 class AppState:
 
     def __init__(self, *args, **kwargs):
@@ -83,7 +82,7 @@ class GLWidget(QGLWidget):
     def initializeGL(self):
         glClearColor(0, 0, 0, 1)
         glEnable(GL_DEPTH_TEST)
-        glPointSize(2)
+        glPointSize(self.live_config.point_size)
 
     def resizeGL(self, w, h):
         glViewport(0, 0, w, h)
@@ -95,6 +94,7 @@ class GLWidget(QGLWidget):
         
 
     def paintGL(self):
+        glPointSize(self.live_config.point_size)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
         glTranslatef(*state.translation)
@@ -173,9 +173,10 @@ class GLWidget(QGLWidget):
         if self.headpoints_transformed or self.movement_points_transformed:
         # Always re-draw stored headpoints, keypoints, and other elements
             draw_movement_points(self.headpoints_transformed, self.movement_points_transformed, self.active_movement_id, self.active_movement_type)
-        draw_vertical_dividers()
-        draw_horizontal_dividers()
-        draw_depth_plane()
+        if self.live_config.draw_planes:
+            draw_vertical_dividers()
+            draw_horizontal_dividers()
+            draw_depth_plane()
         self.cube_manager.draw_cubes()
             
 
@@ -204,7 +205,6 @@ class GLWidget(QGLWidget):
         elif state.mouse_btns[1]:
             state.translation[0] += dx * 0.01
             state.translation[1] -= dy * 0.01
-
         state.prev_mouse = event.x(), event.y()
 
     def wheelEvent(self, event):
@@ -220,3 +220,19 @@ class GLWidget(QGLWidget):
             state.reset()
         elif event.key() == Qt.Key_P:
             state.paused ^= True
+
+    def set_top_view(self):
+        state.pitch, state.yaw, state.translation[:] = 70, 0, [0, -6.5, -5.5]
+        self.update()
+
+    def set_left_view(self):
+        state.pitch, state.yaw, state.translation[:] = 0, 90, [4, 0, -4]
+        self.update()
+
+    def set_right_view(self):
+        state.pitch, state.yaw, state.translation[:] = 0, -90, [-4, 0, -4]
+        self.update()
+
+    def set_front_view(self):
+        state.pitch, state.yaw, state.translation[:] = 0, 0, [0, 0, 0]
+        self.update()
