@@ -15,6 +15,7 @@ class RGBLegendWidget(QWidget):
         self.add_legend_item(layout, "Non-Active Moving Object/Person", QColor(255, 0, 0), solid=True)  # Red solid line
         self.add_legend_item(layout, "Non-Active Stationary Person", QColor(255, 0, 0), solid=False)  # White dotted line
         self.add_legend_item(layout, "Other Moving", QColor(255, 0, 0), solid=True)  # Red solid line for other moving
+        self.add_legend_item(layout, "Outside Thresholds", QColor(127, 127, 127), solid=True)  # Red solid line for other moving
 
         # Set layout and spacing
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)

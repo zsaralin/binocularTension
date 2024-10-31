@@ -12,15 +12,18 @@ from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout
 from transformation_utils import apply_dynamic_transformation
 from rgb_drawing_utils import KEYPOINT_CONNECTIONS
 from live_config import LiveConfig
+from detection_data import DetectionData
 import random
+from cube_utils.cube_manager import CubeManager
 def draw_vertical_dividers(height=2.0, depth=30.0, center_x=0, camera_z=0):
     """Draw multiple vertical dividers with filled gaps of random colors between each wireframe, converging from the camera's position."""
     # Access the LiveConfig instance
     live_config = LiveConfig.get_instance()
     x_divider_angle = live_config.x_divider_angle
+    num_divisions = live_config.num_divisions + 1  # Adjusted to include +1 as per requirement
 
     # Define angles for the dividers
-    angles = [i * (2 * x_divider_angle / 41) - x_divider_angle for i in range(42)]
+    angles = [i * (2 * x_divider_angle / num_divisions) - x_divider_angle for i in range(num_divisions + 1)]
     
     # Draw each divider plane with filled gaps between each pair
     for i in range(len(angles) - 1):        
@@ -50,36 +53,42 @@ def draw_vertical_dividers(height=2.0, depth=30.0, center_x=0, camera_z=0):
         glVertex3f(x2_far, -height / 2, -depth)
         glEnd()
     
-        
         glPopMatrix()
+
 def fill_divider(index_to_fill, height=2.0, depth=30.0, center_x=0, camera_z=0):
     """Fill only the space between two adjacent dividers at index_to_fill with a 3D transparent green object."""
     # Access the LiveConfig instance
     live_config = LiveConfig.get_instance()
     x_divider_angle = live_config.x_divider_angle
+    num_divisions = live_config.num_divisions + 2  # Adjusted to include +2 as per requirement
 
-    # Define the fixed angle step based on 41 dividers
-    angle_step = 2 * x_divider_angle / 41
+    # Define the fixed angle step based on adjusted num_divisions
+    angle_step = 2 * x_divider_angle / num_divisions
 
     # Calculate angles for the specified divider and the next one to the right
     angle1 = -x_divider_angle + index_to_fill * angle_step
     angle2 = angle1 + angle_step
 
     glPushMatrix()
+    
+    # Enable blending and set transparent green color
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    glColor4f(0.0, 1.0, 0.0, 0.3)  # Transparent green color
+    glColor4f(0.0, 1.0, 0.0, 0.1)  # Semi-transparent green
 
-    # Begin drawing the trapezoidal prism as a 3D object for only the specified space
+    # Disable depth writing for transparency
+    glDepthMask(GL_FALSE)
+
+    # Draw trapezoidal prism for the specified space
     glBegin(GL_QUADS)
 
-    # Front face (near the camera, converging to center)
+    # Front face (near the camera)
     glVertex3f(center_x, -height / 2, camera_z)
     glVertex3f(center_x, height / 2, camera_z)
     glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
     glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
 
-    # Back face (far end of the gap)
+    # Back face
     glVertex3f(center_x + depth * math.sin(math.radians(angle1)), -height / 2, camera_z - depth)
     glVertex3f(center_x + depth * math.sin(math.radians(angle1)), height / 2, camera_z - depth)
     glVertex3f(center_x + depth * math.sin(math.radians(angle2)), height / 2, camera_z - depth)
@@ -111,9 +120,11 @@ def fill_divider(index_to_fill, height=2.0, depth=30.0, center_x=0, camera_z=0):
 
     glEnd()
 
+    # Re-enable depth writing after drawing the transparent object
+    glDepthMask(GL_TRUE)
     glDisable(GL_BLEND)
     glPopMatrix()
-
+    
 def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0):
     """
     Draw two horizontal lines based on y_top_divider and y_bottom_divider values
@@ -200,20 +211,31 @@ def draw_depth_plane(camera_z=0, segments=20):
     glDisable(GL_BLEND)
 
 def draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation):
-    """Draws 3D keypoints as spheres and connects them with 3D lines according to the skeleton structure."""
+    """Draws 3D keypoints as spheres and connects them with 3D lines according to the skeleton structure.
+    Sets people outside thresholds in DetectionData for persons with any keypoint out of bounds."""
+    
     original_line_width = glGetFloatv(GL_LINE_WIDTH)  # Store the original line width
     glLineWidth(3.0)  # Set thicker line width for skeleton lines
     glEnable(GL_DEPTH_TEST)
 
+    # Access LiveConfig instance for threshold values
+    live_config = LiveConfig.get_instance()
+    x_min, x_max = live_config.x_threshold_min, live_config.x_threshold_max
+    y_min, y_max = live_config.y_threshold_min, live_config.y_threshold_max
+    z_min, z_max = live_config.z_threshold_min, live_config.z_threshold_max
+
+    # Array to track people outside thresholds
+    people_outside_thresholds = []
+
     for track_id, person_data in persons_with_ids:
         keypoints_3d_transformed = []
+        outside_threshold = False  # Flag to indicate if any keypoint is outside thresholds
 
-        # Draw each keypoint as a sphere and store transformed points
+        # Process each keypoint in person_data
         for keypoint in person_data:
             x2d, y2d, confidence = keypoint[:3]
             if confidence > 0.5:
-                x2d = int(x2d)
-                y2d = int(y2d)
+                x2d, y2d = int(x2d), int(y2d)
 
                 if 0 <= x2d < depth_image.shape[1] and 0 <= y2d < depth_image.shape[0]:
                     depth_value = depth_image[y2d, x2d] * depth_scale
@@ -222,19 +244,38 @@ def draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotat
 
                     x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x2d, y2d], depth_value)
                     point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
-                    point_3d[0] *= -1
-                    point_3d[1] *= -1
-                    point_3d[2] *= -1
+                    point_3d *= -1  # Invert coordinates for consistency
 
                     point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
-                    keypoints_3d_transformed.append(point_3d_transformed)
+                    cube_manager = CubeManager.get_instance()
 
-                    quadric = gluNewQuadric()
-                    glPushMatrix()
-                    glColor3f(1.0, 1.0, 1.0)  # White for keypoints
-                    glTranslatef(point_3d_transformed[0], point_3d_transformed[1], point_3d_transformed[2])
-                    gluSphere(quadric, 0.03, 10, 10)
-                    glPopMatrix()
+                    inside_cube = cube_manager.is_point_in_cubes(point_3d_transformed)
+                    within_threshold = (
+                        x_min <= point_3d_transformed[0] <= x_max and
+                        y_min <= point_3d_transformed[1] <= y_max and
+                        z_min <= point_3d_transformed[2] <= z_max
+                    )
+
+                    if inside_cube or not within_threshold:
+                        outside_threshold = True
+                        break
+                    else:
+                        keypoints_3d_transformed.append(point_3d_transformed)
+
+        # If any keypoint is outside thresholds, mark person and set color to magenta
+        if outside_threshold:
+            people_outside_thresholds.append(track_id)
+            glColor3f(1.0, 0.0, 1.0)  # Magenta for out-of-threshold person
+        else:
+            glColor3f(1.0, 1.0, 1.0)  # White for keypoints within thresholds
+
+        # Draw each valid keypoint as a sphere
+        for point_3d_transformed in keypoints_3d_transformed:
+            quadric = gluNewQuadric()
+            glPushMatrix()
+            glTranslatef(point_3d_transformed[0], point_3d_transformed[1], point_3d_transformed[2])
+            gluSphere(quadric, 0.03, 10, 10)
+            glPopMatrix()
 
         # Draw lines between connected keypoints
         glColor3f(1.0, 1.0, 1.0)  # Green for skeleton lines
@@ -248,6 +289,9 @@ def draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotat
                 glVertex3f(kp1[0], kp1[1], kp1[2])
                 glVertex3f(kp2[0], kp2[1], kp2[2])
         glEnd()
+
+    # Update DetectionData with people outside thresholds
+    DetectionData().set_people_outside_thresholds(people_outside_thresholds)
 
     glLineWidth(original_line_width)  # Reset line width to its original value
 

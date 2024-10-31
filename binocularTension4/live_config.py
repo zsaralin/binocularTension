@@ -25,6 +25,7 @@ class LiveConfig:
         self.min_contour_area = 500  # Default for minimum contour area
         self.person_movement_thres = 0.01  # Default threshold for person movement
         self.point_size = 1  # Default threshold for person movement
+        self.num_divisions= 40
         self.z_threshold_min= 0
         self.z_threshold_max= 6.0
         self.x_threshold_min= 0

@@ -15,6 +15,8 @@ class DetectionData:
         self.person_moving_status = {}
         self.non_person_movement_boxes = []
         self.persons_with_ids = []
+        self.people_outside_thresholds = []  # Store people outside thresholds
+        self.objects_outside_thresholds = []  # Store objects outside thresholds
         self.active_movement_id = None  # ID of the currently active movement
         self.active_movement_type = None  # Type of the currently active movement
         self.lock = threading.Lock()
@@ -42,6 +44,24 @@ class DetectionData:
     def get_persons_with_ids(self):
         with self.lock:
             return self.persons_with_ids
+
+    # Setters and getters for people outside thresholds
+    def set_people_outside_thresholds(self, people_outside_thresholds):
+        with self.lock:
+            self.people_outside_thresholds = people_outside_thresholds
+
+    def get_people_outside_thresholds(self):
+        with self.lock:
+            return self.people_outside_thresholds
+
+    # Setters and getters for objects outside thresholds
+    def set_objects_outside_thresholds(self, objects_outside_thresholds):
+        with self.lock:
+            self.objects_outside_thresholds = objects_outside_thresholds
+
+    def get_objects_outside_thresholds(self):
+        with self.lock:
+            return self.objects_outside_thresholds
 
     # Setters and getters for active movement ID and type
     def set_active_movement_id(self, active_movement_id):

@@ -69,12 +69,17 @@ def find_x_divider_index(point, center_x=0, camera_z=0, height=2.0, depth=30.0):
     delta_x = x - center_x
     delta_z = z - camera_z
     angle_to_point = math.degrees(math.atan2(delta_x, -delta_z))
+    
+    live_config = LiveConfig.get_instance()
     x_divider_angle = live_config.x_divider_angle
+    num_divisions = live_config.num_divisions + 1  # Adjusted to include +1 as per requirement
 
-    divider_angles = [i * (2 * x_divider_angle / 41) - x_divider_angle for i in range(42)]
+    divider_angles = [i * (2 * x_divider_angle / num_divisions) - x_divider_angle for i in range(num_divisions + 1)]
+    
     closest_divider_angle = min(divider_angles, key=lambda a: abs(a - angle_to_point))
     divider_index = divider_angles.index(closest_divider_angle)
     fill_divider(divider_index)
+    
     return divider_index
 
 def get_y_position(point, camera_y=0):

@@ -70,8 +70,8 @@ class RGBWidget(QWidget):
         active_movement_type = self.detection_data.get_active_movement_type()
 
         # Draw bounding boxes for persons and movement
-        draw_person_bounding_boxes(tracks, display_image, person_moving_status, active_movement_id, active_movement_type)
-        draw_movement_boxes(non_person_movement_boxes, display_image, active_movement_id, active_movement_type)
+        draw_person_bounding_boxes(tracks, display_image, person_moving_status, active_movement_id, active_movement_type, self.detection_data)
+        draw_movement_boxes(non_person_movement_boxes, display_image, active_movement_id, active_movement_type,  self.detection_data)
 
         # Flip the image for a mirroring effect
         display_image = cv2.flip(display_image, 1)

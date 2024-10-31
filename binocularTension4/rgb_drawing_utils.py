@@ -1,5 +1,4 @@
 import cv2
-
 # Define keypoint connections (pairs) to draw skeleton lines
 KEYPOINT_CONNECTIONS = [
     (5, 6),   # Shoulders
@@ -11,8 +10,12 @@ KEYPOINT_CONNECTIONS = [
     (12, 14), (14, 16)  # Right leg (hip -> knee -> ankle)
 ]
 
-def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active_movement_id, active_movement_type):
-    """Draw bounding boxes around detected people with solid lines for moving persons and dotted lines for stationary ones."""
+def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active_movement_id, active_movement_type, detection_data):
+    """Draw bounding boxes around detected people with solid lines for moving persons, dotted lines for stationary ones,
+    and magenta color for persons hidden by thresholds."""
+    
+    # Retrieve the list of people outside thresholds from DetectionData
+    people_outside_thresholds = detection_data.get_people_outside_thresholds()
     for track in tracks:
         if not track.is_confirmed():
             continue
@@ -20,12 +23,15 @@ def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active
         ltrb = track.to_ltrb()
         x1, y1, x2, y2 = map(int, ltrb)
 
-        # Determine color and line style based on movement status
-        if active_movement_type == 'person' and track_id == active_movement_id:
+        # Determine color based on active movement status or if the person is outside thresholds
+        if track_id in people_outside_thresholds:
+            bbox_color = (127, 127, 127)  # Grey for people outside thresholds
+        elif active_movement_type == 'person' and track_id == active_movement_id:
             bbox_color = (0, 255, 0)  # Green for active person
         else:
             bbox_color = (0, 0, 255)  # Red for non-active persons
 
+        # Draw bounding box based on movement status
         if person_moving_status.get(track_id, False):
             # Draw solid bounding box for moving person
             cv2.rectangle(color_image, (x1, y1), (x2, y2), bbox_color, 2)
@@ -40,21 +46,27 @@ def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active
             for i in range(y1, y2, 15):  # Right edge
                 cv2.line(color_image, (x2, i), (x2, min(i + 5, y2)), bbox_color, 2)
 
-def draw_movement_boxes(non_person_movement_boxes, color_image, active_movement_id, active_movement_type):
-    """Draw boxes for the provided tracked objects on the color_image, highlighting the active one."""
+def draw_movement_boxes(non_person_movement_boxes, color_image, active_movement_id, active_movement_type, detection_data):
+    """Draw boxes for the provided tracked objects on the color_image, highlighting the active one,
+    and grey color for objects outside thresholds."""
+    
+    # Retrieve the list of objects outside thresholds from DetectionData
+    objects_outside_thresholds = detection_data.get_objects_outside_thresholds()
+    
     for tracked_object in non_person_movement_boxes:
         (x1_t, y1_t, w_t, h_t), obj_id, _ = tracked_object
         x2_t, y2_t = x1_t + w_t, y1_t + h_t
 
-        # Check if this object is the active movement
-        if active_movement_type == 'object' and obj_id == active_movement_id:
-            bbox_color = (0, 180, 0)   # Dark green for active object
+        # Determine color based on active status and threshold check
+        if obj_id in objects_outside_thresholds:
+            bbox_color = (127, 127, 127)  # Gray for objects outside thresholds
+        elif active_movement_type == 'object' and obj_id == active_movement_id:
+            bbox_color = (0, 180, 0)  # Dark green for active object
         else:
-            bbox_color =  (0, 0, 255) # Red for other objects
+            bbox_color = (0, 0, 255)  # Red for other objects
 
         # Draw the bounding box
         cv2.rectangle(color_image, (x1_t, y1_t), (x2_t, y2_t), bbox_color, 2)
-        
 
 def draw_keypoints_manually(image, keypoints_data, confidence_threshold=0.5):
     """Draw keypoints manually based on the provided format."""

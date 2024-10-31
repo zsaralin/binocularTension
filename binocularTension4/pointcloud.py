@@ -120,22 +120,35 @@ class GLWidget(QGLWidget):
 
                 rotation = [self.live_config.rotate_x, self.live_config.rotate_y, self.live_config.rotate_z]
                 translation = [self.live_config.translate_x, self.live_config.translate_y, self.live_config.translate_z]
-
                 transformed_verts = apply_dynamic_transformation(verts, rotation, translation)
 
+                # Apply X, Y, and Z-threshold filtering on the transformed points
+                x_min, x_max = self.live_config.x_threshold_min, self.live_config.x_threshold_max
+                y_min, y_max = self.live_config.y_threshold_min, self.live_config.y_threshold_max
+                z_min, z_max = self.live_config.z_threshold_min, self.live_config.z_threshold_max
+
+                # Find valid indices within the specified X, Y, and Z ranges
+                valid_indices = np.where(
+                    (transformed_verts[:, 0] >= x_min) & (transformed_verts[:, 0] <= x_max) &
+                    (transformed_verts[:, 1] >= y_min) & (transformed_verts[:, 1] <= y_max) &
+                    (transformed_verts[:, 2] >= z_min) & (transformed_verts[:, 2] <= z_max)
+                )
+                filtered_verts = transformed_verts[valid_indices]
+                filtered_texcoords = texcoords[valid_indices]
+
+                # Process color data for filtered points
                 color_image = np.asanyarray(color_frame.get_data())
-                color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)  # Convert from BGR to RGB
-
+                color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
                 h, w, _ = color_image.shape
+                filtered_texcoords[:, 0] *= w
+                filtered_texcoords[:, 1] *= h
+                filtered_texcoords = filtered_texcoords.astype(int)
+                np.clip(filtered_texcoords[:, 0], 0, w - 1, out=filtered_texcoords[:, 0])
+                np.clip(filtered_texcoords[:, 1], 0, h - 1, out=filtered_texcoords[:, 1])
 
-                texcoords[:, 0] *= w
-                texcoords[:, 1] *= h
-                texcoords = texcoords.astype(int)
-                np.clip(texcoords[:, 0], 0, w - 1, out=texcoords[:, 0])
-                np.clip(texcoords[:, 1], 0, h - 1, out=texcoords[:, 1])
 
-                colors = color_image[texcoords[:, 1], texcoords[:, 0]]
-                self.vertices = transformed_verts  
+                colors = color_image[filtered_texcoords[:, 1], filtered_texcoords[:, 0]]
+                self.vertices = filtered_verts  
                 self.colors = colors / 255.0  # Normalize colors
 
                 # Compute and store transformed elements for re-drawing when paused

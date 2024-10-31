@@ -31,7 +31,8 @@ class ControlPanelWidget(QWidget):
         self.movement = [
             self.config['min_contour_area'], self.config['person_movement_thres']
         ]
-        self.point_size = self.config.get("point_size", 2)  # Default point size
+        self.point_size = [self.config.get("point_size", 2)]  # Single-item list for point size
+        self.num_divisions = [self.config.get("num_divisions", 10)]  # Single-item list for num_divisions
 
         # Threshold settings
         self.thresholds = [
@@ -66,6 +67,7 @@ class ControlPanelWidget(QWidget):
                 "min_contour_area": 500,
                 "person_movement_thres": 0.01,
                 "point_size": 2,  # Default point size
+                "num_divisions": 10,  # Default number of divisions
                 "x_threshold_min": 0,
                 "x_threshold_max": 10,
                 "y_threshold_min": 0,
@@ -90,7 +92,8 @@ class ControlPanelWidget(QWidget):
             "draw_planes": self.divider[5],
             "min_contour_area": self.movement[0],
             "person_movement_thres": self.movement[1],
-            "point_size": self.point_size,  # Save the point size setting
+            "point_size": self.point_size[0],  # Save the point size setting
+            "num_divisions": self.num_divisions[0],  # Save the num_divisions setting
             "x_threshold_min": self.thresholds[0],
             "x_threshold_max": self.thresholds[1],
             "y_threshold_min": self.thresholds[2],
@@ -130,9 +133,9 @@ class ControlPanelWidget(QWidget):
         # Threshold sliders
         content_layout.addWidget(QLabel("Thresholds"))
         self.create_slider_group(content_layout, "X Min", 0, -15, 15, self.thresholds, 0, 0.1)
-        self.create_slider_group(content_layout, "X Max", 1, -50, 100, self.thresholds, 1, 0.1)
-        self.create_slider_group(content_layout, "Y Min", 2, -50, 100, self.thresholds, 2, 0.1)
-        self.create_slider_group(content_layout, "Y Max", 3, -50, 100, self.thresholds, 3, 0.1)
+        self.create_slider_group(content_layout, "X Max", 1, -15, 15, self.thresholds, 1, 0.1)
+        self.create_slider_group(content_layout, "Y Min", 2, -10, 50, self.thresholds, 2, 0.1)
+        self.create_slider_group(content_layout, "Y Max", 3, -10, 50, self.thresholds, 3, 0.1)
         self.create_slider_group(content_layout, "Z Min", 4, -15, 0, self.thresholds, 4, 0.1)
         self.create_slider_group(content_layout, "Z Max", 5, -10, 0, self.thresholds, 5, 0.1)
 
@@ -157,8 +160,20 @@ class ControlPanelWidget(QWidget):
 
         # Point Size slider
         content_layout.addWidget(QLabel("Point Cloud Settings"))
-        self.create_slider_group(content_layout, "Point Size", 0, 1, 10, [self.point_size], 0, 1)
+        self.create_slider_group(content_layout, "Point Size", 0, 1, 10, self.point_size, 0, 1)
 
+        # Num Divisions slider
+        content_layout.addWidget(QLabel("Grid Settings"))
+        self.create_slider_group(content_layout, "Num Divisions", 0, 10, 200, self.num_divisions, 0, 10)
+
+        # Cube-related buttons
+        edit_cubes_button = QPushButton("Edit Cubes")
+        edit_cubes_button.clicked.connect(self.open_edit_cubes_dialog)
+        content_layout.addWidget(edit_cubes_button)
+
+        save_cube_button = QPushButton("Save Cubes")
+        save_cube_button.clicked.connect(self.cube_manager.save_cubes)
+        content_layout.addWidget(save_cube_button)
         # Save button
         save_button = QPushButton("Save Config")
         save_button.clicked.connect(self.save_config)
@@ -173,6 +188,11 @@ class ControlPanelWidget(QWidget):
         # Add scroll area to the main layout
         main_layout.addWidget(scroll_area)
         self.setLayout(main_layout)
+
+    def open_edit_cubes_dialog(self):
+        """Opens the CubeEditDialog to edit cube parameters."""
+        dialog = CubeEditDialog(self.cube_manager)
+        dialog.exec_()
 
     def toggle_draw_planes(self, state):
         """Toggle the drawing of planes on the point cloud."""
@@ -224,14 +244,14 @@ class ControlPanelWidget(QWidget):
         self.live_config.draw_planes = self.divider[5]
         self.live_config.min_contour_area = self.movement[0]
         self.live_config.person_movement_thres = self.movement[1]
-        self.live_config.point_size = self.point_size
+        self.live_config.point_size = self.point_size[0]
+        self.live_config.num_divisions = self.num_divisions[0]
         self.live_config.x_threshold_min = self.thresholds[0]
         self.live_config.x_threshold_max = self.thresholds[1]
         self.live_config.y_threshold_min = self.thresholds[2]
         self.live_config.y_threshold_max = self.thresholds[3]
         self.live_config.z_threshold_min = self.thresholds[4]
         self.live_config.z_threshold_max = self.thresholds[5]
-
 
     def update_value_display(self, label, input_field, value, min_val, max_val, step):
         """Update the label and input field showing the current value."""
@@ -252,5 +272,7 @@ class ControlPanelWidget(QWidget):
             setattr(self.live_config, ["min_contour_area", "person_movement_thres"][index], target_list[index])
         elif target_list == self.thresholds:
             setattr(self.live_config, ["x_threshold_min", "x_threshold_max", "y_threshold_min", "y_threshold_max", "z_threshold_min", "z_threshold_max"][index], target_list[index])
-        else:
+        elif target_list == self.point_size:
             self.live_config.point_size = target_list[index]
+        elif target_list == self.num_divisions:
+            self.live_config.num_divisions = target_list[index]

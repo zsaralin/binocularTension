@@ -12,10 +12,14 @@ class CubeEditDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Edit Cubes")
+        self.setFixedHeight(600)  # Adjust height for additional depth slider
+
         layout = QVBoxLayout(self)
 
         # Cube list
         self.cube_list = QListWidget()
+        self.cube_list.setFixedHeight(100)
+
         for cube_id in self.cube_manager.cubes:
             self.cube_list.addItem(f"Cube {cube_id}")
         self.cube_list.currentTextChanged.connect(self.load_cube)
@@ -34,13 +38,18 @@ class CubeEditDialog(QDialog):
         # Sliders for cube properties with decimal steps
         self.slider_layout = QFormLayout()
 
-
-        # Create sliders with less spacing
+        # Position, size, and depth sliders
         self.x_slider = self.create_slider("X", -10, 10, 0.1)
         self.y_slider = self.create_slider("Y", -10, 10, 0.1)
         self.z_slider = self.create_slider("Z", -10, 10, 0.1)
-        self.width_slider = self.create_slider("Width", 0.1, 5, 0.1)
-        self.height_slider = self.create_slider("Height", 0.1, 5, 0.1)
+        self.width_slider = self.create_slider("Width", 0.1, 10, 0.1)
+        self.height_slider = self.create_slider("Height", 0.1, 10, 0.1)
+        self.depth_slider = self.create_slider("Depth", 0.1, 10, 0.1)
+
+        # Rotation sliders
+        self.rotation_x_slider = self.create_slider("Rotate X", 0, 360, 1)
+        self.rotation_y_slider = self.create_slider("Rotate Y", 0, 360, 1)
+        self.rotation_z_slider = self.create_slider("Rotate Z", 0, 360, 1)
 
         layout.addLayout(self.slider_layout)
 
@@ -76,7 +85,7 @@ class CubeEditDialog(QDialog):
     def add_cube(self):
         """Add a new cube with default values to the CubeManager's cubes dictionary."""
         new_id = str(len(self.cube_manager.cubes))
-        default_cube = {"x": 0, "y": 0, "z": -5, "width": 1, "height": 1}
+        default_cube = {"x": 0, "y": 0, "z": -5, "width": 1, "height": 1, "depth": 1, "rotation_x": 0, "rotation_y": 0, "rotation_z": 0}
 
         # Add the cube to the manager and update the list
         self.cube_manager.cubes[new_id] = default_cube
@@ -96,8 +105,12 @@ class CubeEditDialog(QDialog):
             self.x_slider.setValue(0)
             self.y_slider.setValue(0)
             self.z_slider.setValue(0)
-            self.width_slider.setValue(10)  # Reset to default
+            self.width_slider.setValue(10)
             self.height_slider.setValue(10)
+            self.depth_slider.setValue(10)
+            self.rotation_x_slider.setValue(0)
+            self.rotation_y_slider.setValue(0)
+            self.rotation_z_slider.setValue(0)
 
     def load_cube(self, cube_id):
         """Load selected cube's values into sliders"""
@@ -106,12 +119,16 @@ class CubeEditDialog(QDialog):
         self.current_cube_id = cube_id.split(" ")[1]
         cube = self.cube_manager.cubes[self.current_cube_id]
         
-        # Set slider values based on scaled values to support decimal steps
+        # Set slider values based on cube properties
         self.x_slider.setValue(int(cube["x"] / 0.1))
         self.y_slider.setValue(int(cube["y"] / 0.1))
         self.z_slider.setValue(int(cube["z"] / 0.1))
         self.width_slider.setValue(int(cube["width"] / 0.1))
         self.height_slider.setValue(int(cube["height"] / 0.1))
+        self.depth_slider.setValue(int(cube["depth"] / 0.1))
+        self.rotation_x_slider.setValue(int(cube["rotation_x"]))
+        self.rotation_y_slider.setValue(int(cube["rotation_y"]))
+        self.rotation_z_slider.setValue(int(cube["rotation_z"]))
 
     def update_current_cube(self):
         """Update the current cube's data with slider values, applying scaling for decimal steps"""
@@ -121,7 +138,11 @@ class CubeEditDialog(QDialog):
                 "y": self.y_slider.value() * 0.1,
                 "z": self.z_slider.value() * 0.1,
                 "width": self.width_slider.value() * 0.1,
-                "height": self.height_slider.value() * 0.1
+                "height": self.height_slider.value() * 0.1,
+                "depth": self.depth_slider.value() * 0.1,
+                "rotation_x": self.rotation_x_slider.value(),
+                "rotation_y": self.rotation_y_slider.value(),
+                "rotation_z": self.rotation_z_slider.value()
             }
 
     def save_changes(self):
