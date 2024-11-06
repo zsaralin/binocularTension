@@ -12,6 +12,7 @@ class Detector:
         self.tracker = self.initialize_tracker()
         self.motion_detector = MotionDetector()
         self.live_config = LiveConfig.get_instance()
+        self.centroid_history = {}  # Track centroids for each person by track_id
 
     def initialize_tracker(self):
         """Initialize the Deep SORT tracker"""
@@ -35,12 +36,8 @@ class Detector:
             print("No tracks found, resetting tracker.")
             self.tracker = self.initialize_tracker()  # Reset tracker if no tracks found
         return tracks
-
     def detect_movement_and_pose(self, color_image):
         """Run movement detection and pose detection on the color image"""
-        # Detect movement using background subtraction
-        fg_mask, movement_boxes = self.motion_detector.detect_movement(color_image)
-
         # Perform YOLO pose detection
         pose_results = self.pose_model(color_image, verbose=False)
         keypoints_data, detections = self.process_pose_results(pose_results)
@@ -68,21 +65,36 @@ class Detector:
 
             person_boxes.append({'track_id': track_id, 'bbox': (x1, y1, x2, y2)})
 
-        # Compute movement status for each person
+        # Compute movement status for each person using normalized bounding box centroid movement
         person_moving_status = {}
         for person in person_boxes:
             track_id = person['track_id']
             x1, y1, x2, y2 = person['bbox']
-            x1 = max(0, x1)
-            y1 = max(0, y1)
-            x2 = min(color_image.shape[1], x2)
-            y2 = min(color_image.shape[0], y2)
-            person_fg_mask = fg_mask[y1:y2, x1:x2]
-            movement_pixels = cv2.countNonZero(person_fg_mask)
-            bbox_area = (x2 - x1) * (y2 - y1)
-            movement_ratio = movement_pixels / bbox_area if bbox_area > 0 else 0
-            person_moving_status[track_id] = movement_ratio > self.live_config.person_movement_thres
+            
+            # Calculate the current centroid of the bounding box
+            current_centroid = ((x1 + x2) / 2, (y1 + y2) / 2)
+            bbox_height = y2 - y1
 
+            # Get previous centroid and calculate normalized movement distance
+            previous_centroid = self.centroid_history.get(track_id)
+            if previous_centroid:
+                movement_distance = np.linalg.norm(np.array(current_centroid) - np.array(previous_centroid))
+                
+                # Normalize movement by bounding box height (proxy for distance)
+                normalized_movement = movement_distance / bbox_height if bbox_height > 0 else movement_distance
+                person_moving_status[track_id] = normalized_movement > self.live_config.person_movement_thres  # Adjust threshold as needed
+            else:
+                person_moving_status[track_id] = False
+
+            # Update centroid history
+            self.centroid_history[track_id] = current_centroid
+
+        # Remove old track IDs from centroid history if they are no longer in the current frame
+        tracked_ids = {track.track_id for track in tracks if track.is_confirmed()}
+        self.centroid_history = {track_id: centroid for track_id, centroid in self.centroid_history.items() if track_id in tracked_ids}
+
+        # Get non-person movement boxes
+        movement_boxes = self.motion_detector.detect_movement(color_image)[1]
         non_person_movement_boxes = self.motion_detector.get_non_person_movement_boxes(
             movement_boxes, person_boxes, movement_person_overlap_threshold=0.1
         )
@@ -93,5 +105,6 @@ class Detector:
             if idx < len(keypoints_data):
                 person_data = keypoints_data[idx]
                 persons_with_ids.append((track_id, person_data))
-        # Return the results
+
+        # Return the results, including non-person movement boxes
         return tracks, keypoints_data, detections, person_boxes, person_moving_status, non_person_movement_boxes, persons_with_ids

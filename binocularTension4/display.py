@@ -2,11 +2,13 @@ import sys
 import os
 import socket
 import threading
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget
+import time
+import random
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal
-from PyQt5.QtGui import QScreen
-import random
+from display_control_panel import DisplayControlPanelWidget  # Import the control panel
+from display_live_config import DisplayLiveConfig  # Import LiveConfig for config values
 
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
@@ -21,42 +23,49 @@ class FullScreenBlinkApp(QWidget):
         super().__init__()
         self.image_folder = image_folder
         self.label = QLabel(self)
-        self.debug_mode = False  # Debug mode flag
+        self.debug_mode = False
         self.current_filename = "bt_20_cso.png"
         self.is_blinking = False
-        self.received_recently = False
+        self.in_sleep_mode = False
+        self.last_image_time = time.time()  # Initialize timestamp for no-image check
+        self.last_displayed_image = None
 
+        # Load live config values
+        self.live_config = DisplayLiveConfig.get_instance()
+        self.min_blink_interval = self.live_config.min_blink_interval
+        self.max_blink_interval = self.live_config.max_blink_interval
+        self.sleep_timeout = self.live_config.sleep_duration * 1000 * 60
+        self.inactivity_time_interval = self.live_config.inactivity_timer  
+
+        # Set up window
         largest_screen = get_largest_display()
         self.move(largest_screen.geometry().x(), largest_screen.geometry().y())
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.showFullScreen()
 
+        # Load images
         self.image_filenames = []
         self.images = {}
         self.load_images()
 
-        self.blink_timer = QTimer(self)
-        self.blink_timer.timeout.connect(self.simulate_blink)
+        # Timers for inactivity, continuous blinking, and sleep mode
+        self.inactivity_timer = QTimer(self)
+        self.inactivity_timer.timeout.connect(self.check_inactivity)
+        self.reset_inactivity_timer()
 
-        self.no_image_timer = QTimer(self)
-        self.no_image_timer.setSingleShot(True)
-        self.no_image_timer.timeout.connect(self.start_blinking)
+        self.continuous_blink_timer = QTimer(self)
+        self.continuous_blink_timer.timeout.connect(self.simulate_blink)
 
+        self.sleep_timer = QTimer(self)
+        self.sleep_timer.timeout.connect(self.enter_sleep_mode)
+        self.sleep_timer.start(self.sleep_timeout)
+
+        # Display initial image and set up signal for server updates
         self.display_image(self.current_filename)
-        self.no_image_timer.start(5000)
-
         self.update_image_signal.connect(self.update_display_image)
 
-    def display_image(self, filename):
-        image_path = os.path.join(self.image_folder, filename)
-        if os.path.exists(image_path):
-            pixmap = QPixmap(image_path)
-            self.label.setPixmap(pixmap)
-            self.label.setFixedSize(pixmap.size())
-            self.setFixedSize(pixmap.size())
-            self.current_filename = filename
-        else:
-            print(f"Image not found: {image_path}")
+        # Initialize control panel
+        self.control_panel = None
 
     def load_images(self):
         for filename in os.listdir(self.image_folder):
@@ -69,27 +78,140 @@ class FullScreenBlinkApp(QWidget):
             self.current_filename = self.image_filenames[0]
             self.display_image(self.current_filename)
 
-    def start_blinking(self):
-        self.blink_timer.start(5000)
+    def display_image(self, filename):
+        image_path = os.path.join(self.image_folder, filename)
+        if os.path.exists(image_path):
+            pixmap = self.images.get(filename)
+            if not pixmap:
+                pixmap = QPixmap(image_path)
+                self.images[filename] = pixmap
+            self.label.setPixmap(pixmap)
+            self.label.setFixedSize(pixmap.size())
+            self.setFixedSize(pixmap.size())
+            self.current_filename = filename
+        else:
+            print(f"Image not found: {image_path}")
 
-    def stop_blinking(self):
-        self.blink_timer.stop()
+    def reset_inactivity_timer(self):
+        """Resets the inactivity timer with a new randomized interval."""
+        self.inactivity_timer.start(500)
 
+    def check_inactivity(self):
+        """Checks if enough time has passed since the last image update to start blinking."""
+        if time.time() - self.last_image_time > self.inactivity_time_interval:
+            self.start_continuous_blinking()
+    def start_continuous_blinking(self):
+        """Start repeated blinking if no image is received for an extended period."""
+        if not self.in_sleep_mode and not self.is_blinking:
+            self.inactivity_timer.stop()  # Stop inactivity timer to prevent multiple triggers
+            self.simulate_blink()  # Start the blinking cycle
+
+    def stop_continuous_blinking(self):
+        """Stop continuous blinking and reset inactivity timer."""
+        self.continuous_blink_timer.stop()
+        self.reset_inactivity_timer()
+
+    def schedule_next_blink(self):
+        """Schedule the next blink with a randomized interval between min and max intervals."""
+        if not self.in_sleep_mode:
+            next_blink_interval = random.randint(self.min_blink_interval, self.max_blink_interval)
+            self.continuous_blink_timer.start(next_blink_interval)
+            print(f"Next blink scheduled in {next_blink_interval} ms")
+
+    def enter_sleep_mode(self):
+        """Enter sleep mode and display half-closed eye briefly before fully closing."""
+        if self.is_blinking:
+            print("Waiting for blink to finish before entering sleep mode.")
+            QTimer.singleShot(100, self.enter_sleep_mode)  # Check again shortly
+            return
+
+        self.in_sleep_mode = True
+        self.stop_continuous_blinking()  # Ensure blinking is fully stopped
+
+        # Define filenames for half-closed and fully closed images
+        half_closed_eye_filename = self.current_filename.replace('o', 'h')
+        closed_eye_filename = self.current_filename.replace('o', 'c')
+
+        # Display half-closed eye briefly
+        self.display_image(half_closed_eye_filename)
+        print("Displaying half-closed eye")
+
+        # After a brief delay, display the fully closed eye
+        QTimer.singleShot(200, lambda: self.display_image(closed_eye_filename))
+        print("Entering sleep mode with closed eye after half-closed")
     def simulate_blink(self):
-        if self.current_filename and self.debug_mode:
-            self.is_blinking = True
-            copy = self.current_filename
-            base_filename = self.current_filename[:-7]
-            blink_filename_f = f"{base_filename}f" + self.current_filename[-6:]
+        """Simulate the blink by toggling images if not in sleep mode, debug mode, or already blinking."""
+        if self.in_sleep_mode or self.debug_mode or self.is_blinking:
+            print("Blinking skipped: in sleep mode, debug mode, or already blinking")
+            return  # Do not blink if in sleep mode, debug mode, or already blinking
 
-            self.display_image(blink_filename_f.replace('o', 'h'))
-            QTimer.singleShot(100, lambda: self.display_image(blink_filename_f.replace('o', 'c')))
-            QTimer.singleShot(300, lambda: self.display_image(blink_filename_f.replace('o', 'h')))
-            QTimer.singleShot(400, lambda: self.end_blinking(copy))
+        self.is_blinking = True
+        original_filename = self.current_filename
+
+        # Construct filenames for half-closed and closed images
+        half_closed_eye_filename = self.current_filename[:-5] + "h.png"
+        closed_eye_filename = self.current_filename[:-5] + "c.png"
+
+        # Replace third-last character with 'f' for blinking images
+        half_closed_eye_filename = half_closed_eye_filename[:-7] + "f" + half_closed_eye_filename[-6:]
+        closed_eye_filename = closed_eye_filename[:-7] + "f" + closed_eye_filename[-6:]
+
+        print(f"Starting blink sequence with original image: {original_filename}")
+        print(f"Half-closed eye filename: {half_closed_eye_filename}")
+        print(f"Closed eye filename: {closed_eye_filename}")
+
+        # Start the blink sequence
+        self.display_image(half_closed_eye_filename)
+        print("Displayed half-closed eye")
+
+        QTimer.singleShot(100, lambda: (self.display_image(closed_eye_filename), print("Displayed closed eye")))
+        QTimer.singleShot(300, lambda: (self.display_image(half_closed_eye_filename), print("Displayed half-closed eye again")))
+        QTimer.singleShot(400, lambda: self.end_blinking(original_filename))
+
+    def enter_sleep_mode(self):
+        """Enter sleep mode and display half-closed eye briefly before fully closing."""
+        if self.is_blinking:
+            print("Waiting for blink to finish before entering sleep mode.")
+            QTimer.singleShot(100, self.enter_sleep_mode)  # Check again shortly
+            return
+
+        self.in_sleep_mode = True
+        self.stop_continuous_blinking()  # Ensure blinking is fully stopped
+
+        # Define filenames for half-closed and fully closed images with 'f' as the third-last character
+        half_closed_eye_filename = self.current_filename[:-5] + "h.png"
+        closed_eye_filename = self.current_filename[:-5] + "c.png"
+
+        # Replace third-last character with 'f' for the sleep mode half-closed and closed states
+        half_closed_eye_filename = half_closed_eye_filename[:-7] + "f" + half_closed_eye_filename[-6:]
+        closed_eye_filename = closed_eye_filename[:-7] + "f" + closed_eye_filename[-6:]
+
+        # Display half-closed eye briefly
+        self.display_image(half_closed_eye_filename)
+        print("Displaying half-closed eye")
+
+        # After a brief delay, display the fully closed eye
+        QTimer.singleShot(200, lambda: self.display_image(closed_eye_filename))
+        print("Entering sleep mode with closed eye after half-closed")
 
     def end_blinking(self, original_image):
+        """End the blinking effect and reset the eye to the original state."""
         self.display_image(original_image)
-        self.is_blinking = False
+        print(f"Blinking ended, returned to original image: {original_image}")
+        self.is_blinking = False  # Reset the blinking flag
+        self.schedule_next_blink()  # Schedule the next blink after the current one ends
+
+
+    def on_blink_interval_changed(self, value):
+        """Update the blink interval in live config and restart the inactivity timer."""
+        self.min_blink_interval = self.live_config.min_blink_interval
+        self.max_blink_interval = self.live_config.max_blink_interval
+        self.reset_inactivity_timer()
+
+    def on_sleep_timeout_changed(self, value):
+        """Update the sleep timeout in live config."""
+        self.sleep_timeout = self.live_config.sleep_duration * 1000 * 60
+        self.sleep_timer.start(self.sleep_timeout)
 
     def start_server_thread(self, host, port):
         def listen_for_filenames():
@@ -106,75 +228,40 @@ class FullScreenBlinkApp(QWidget):
         thread = threading.Thread(target=listen_for_filenames, daemon=True)
         thread.start()
 
+    def exit_sleep_mode(self):
+            """Exit sleep mode if data received and reset timers."""
+            if self.in_sleep_mode:
+                print("Exiting sleep mode.")
+                self.in_sleep_mode = False
+                self.reset_inactivity_timer()
+                self.sleep_timer.start(self.sleep_timeout)
+
+
     def update_display_image(self, filename):
-        if self.is_blinking:
-            QTimer.singleShot(600, lambda: self.check_and_update_image(filename))
-        else:
+        """Update the display image, exit sleep mode if active, and reset timers."""
+        self.exit_sleep_mode()  # Exit sleep mode if active
+        if not self.is_blinking:
             self.check_and_update_image(filename)
 
     def check_and_update_image(self, filename):
-        if self.no_image_timer.remainingTime() <= 0 and random.random() < .5:
-            filename = filename.replace('o.png', 'w.png')
-            self.display_image(filename)
-            QTimer.singleShot(3000, lambda: self.display_image(filename.replace('w.png', 'o.png')))
-        else:
-            self.display_image(filename)
-        self.no_image_timer.start(5000)
+        if filename != self.current_filename:
+            if random.random() < 0.5 and time.time() - self.last_image_time > 5:  # Check if 5 seconds have passed
+                filename = self.current_filename.replace('o.png', 'w.png')
+                self.display_image(filename)
+                QTimer.singleShot(3000, lambda: self.display_image(filename.replace('w.png', 'o.png')))
+            else:
+                self.display_image(filename)
+            self.last_image_time = time.time()  # Reset timestamp on image update
+            self.stop_continuous_blinking()  # Stop blinking if a new image is received
+            self.reset_inactivity_timer()    # Reset inactivity timer
 
     def toggle_debug_mode(self):
         self.debug_mode = not self.debug_mode
         print(f"Debug mode {'enabled' if self.debug_mode else 'disabled'}.")
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_D:
-            self.toggle_debug_mode()
-        elif self.debug_mode:
-            base, xpos, depth, ypos, mode = self.parse_filename()
-            xpos = int(xpos)
-            if event.key() == Qt.Key_Left:
-                xpos = max(xpos - 1, 0)
-            elif event.key() == Qt.Key_Right:
-                xpos = min(xpos + 1, 201)
-            elif event.key() == Qt.Key_Up:
-                # Logic for 'up' key to update ypos
-                if ypos == 's':
-                    ypos = 'u'
-                elif ypos == 'd':
-                    ypos = 's'
-            elif event.key() == Qt.Key_Down:
-                # Logic for 'down' key to update ypos
-                if ypos == 's':
-                    ypos = 'd'
-                elif ypos == 'u':
-                    ypos = 's'
-            elif event.key() == Qt.Key_Space:
-                depth = 'f' if depth == 'c' else 'c'
-            elif event.key() == Qt.Key_O:
-                mode = 'o'
-            elif event.key() == Qt.Key_C:
-                mode = 'c'
-            elif event.key() == Qt.Key_W:
-                mode = 'w'
-
-            # Update the filename with potentially modified values
-            self.update_filename(base, xpos, depth, ypos, mode)
-
-    def parse_filename(self):
-        parts = self.current_filename.split('_')
-        base = parts[0]
-        xpos = parts[1].zfill(2)  # Zero-padding for xpos
-        depth_ypos_mode = parts[2].split('.')[0]
-        depth = depth_ypos_mode[0] if depth_ypos_mode[0] in 'ocw' else 'f'  # Default depth if invalid
-        ypos = depth_ypos_mode[1] if len(depth_ypos_mode) > 1 else 's'  # Default ypos if missing
-        mode = depth_ypos_mode[2] if len(depth_ypos_mode) > 2 else 'o'  # Default mode if missing
-        return base, xpos, depth, ypos, mode
-
-    def update_filename(self, base, xpos, depth, ypos, mode):
-        # Format xpos with zero-padding for consistent filenames
-        new_filename = f"{base}_{xpos}_{depth}{ypos}{mode}.png"
-        print(new_filename)
-        if new_filename in self.images:
-            self.display_image(new_filename)    
+        if event.key() == Qt.Key_G:
+            self.toggle_control_panel()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

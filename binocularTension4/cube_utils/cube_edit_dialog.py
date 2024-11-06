@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QListWidget, QFormLayout, QSlider, QLabel, QDialogButtonBox, QPushButton
+    QDialog, QVBoxLayout, QListWidget, QFormLayout, QSlider, QLabel, QDialogButtonBox, QPushButton, QHBoxLayout
 )
 from PyQt5.QtCore import Qt
 
@@ -12,28 +12,28 @@ class CubeEditDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Edit Cubes")
-        self.setFixedHeight(600)  # Adjust height for additional depth slider
+        self.setFixedSize(600, 400)  # Set a fixed width and reduce height
 
         layout = QVBoxLayout(self)
 
         # Cube list
         self.cube_list = QListWidget()
         self.cube_list.setFixedHeight(100)
-
         for cube_id in self.cube_manager.cubes:
             self.cube_list.addItem(f"Cube {cube_id}")
         self.cube_list.currentTextChanged.connect(self.load_cube)
         layout.addWidget(self.cube_list)
 
-        # Add Cube button
+        # Buttons for adding and deleting cubes
+        button_layout = QHBoxLayout()
         add_cube_button = QPushButton("Add Cube")
         add_cube_button.clicked.connect(self.add_cube)
-        layout.addWidget(add_cube_button)
+        button_layout.addWidget(add_cube_button)
 
-        # Delete Cube button
         delete_cube_button = QPushButton("Delete Cube")
         delete_cube_button.clicked.connect(self.delete_cube)
-        layout.addWidget(delete_cube_button)
+        button_layout.addWidget(delete_cube_button)
+        layout.addLayout(button_layout)
 
         # Sliders for cube properties with decimal steps
         self.slider_layout = QFormLayout()
@@ -61,25 +61,25 @@ class CubeEditDialog(QDialog):
 
     def create_slider(self, label, min_val, max_val, step):
         """Helper to create a labeled slider with decimal steps."""
+        slider_layout = QHBoxLayout()
+        slider_label = QLabel(label)
         slider = QSlider(Qt.Horizontal)
         slider.setMinimum(int(min_val / step))
         slider.setMaximum(int(max_val / step))
         slider.setValue(0)
         slider.setSingleStep(1)
         value_label = QLabel(f"{0:.1f}")
-        value_label.setAlignment(Qt.AlignRight)
-        
+        value_label.setFixedWidth(40)  # Set fixed width for alignment
+
         # Connect slider to update the cube and label dynamically
-        slider.valueChanged.connect(
-            lambda value, lbl=value_label: lbl.setText(f"{value * step:.1f}")
-        )
-        slider.valueChanged.connect(
-            lambda value: self.update_current_cube()
-        )
-        
-        # Store slider and label in layout
-        self.slider_layout.addRow(QLabel(label), slider)
-        self.slider_layout.addRow(value_label)
+        slider.valueChanged.connect(lambda value: value_label.setText(f"{value * step:.1f}"))
+        slider.valueChanged.connect(lambda value: self.update_current_cube())
+
+        # Add label, slider, and value label on the same row
+        slider_layout.addWidget(slider_label)
+        slider_layout.addWidget(slider)
+        slider_layout.addWidget(value_label)
+        self.slider_layout.addRow(slider_layout)
         return slider
 
     def add_cube(self):

@@ -45,7 +45,16 @@ def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active
                 cv2.line(color_image, (x1, i), (x1, min(i + 5, y2)), bbox_color, 2)
             for i in range(y1, y2, 15):  # Right edge
                 cv2.line(color_image, (x2, i), (x2, min(i + 5, y2)), bbox_color, 2)
-
+        cv2.putText(
+            color_image,
+            f"ID: {track_id}",
+            (x1, y1 - 10),  # Position slightly above the bounding box
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,  # Font scale
+            bbox_color,
+            1,  # Thickness
+            cv2.LINE_AA
+        )
 def draw_movement_boxes(non_person_movement_boxes, color_image, active_movement_id, active_movement_type, detection_data):
     """Draw boxes for the provided tracked objects on the color_image, highlighting the active one,
     and grey color for objects outside thresholds."""

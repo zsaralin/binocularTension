@@ -6,18 +6,16 @@ from rgb_drawing_utils import bbox_iou
 from live_config import LiveConfig  # Import LiveConfig for dynamic configuration
 
 class MotionDetector:
-    def __init__(self, bbox_hold_time=0, buffer=0):
+    def __init__(self, buffer=0):
         # Create Background Subtractor MOG2 object
         self.backSub = cv2.createBackgroundSubtractorMOG2()
-        
+        self.live_config = LiveConfig.get_instance()
+
         # List to store tracked objects (bounding box, ID, last seen timestamp)
         self.tracked_objects = []
         self.next_object_id = 1  # Start from ID 1
-        self.bbox_hold_time = bbox_hold_time  # Hold the bounding box for `bbox_hold_time` seconds after motion stops
+        self.tracking_hold_duration = self.live_config.tracking_hold_duration  # Hold the bounding box for `bbox_hold_time` seconds after motion stops
         self.buffer = buffer  # Buffer for detecting nearby bounding boxes
-
-        # Access the LiveConfig instance for dynamic settings
-        self.live_config = LiveConfig.get_instance()
 
     def boxes_near(self, box1, box2):
         """
@@ -55,7 +53,7 @@ class MotionDetector:
 
         # Keep existing objects if they haven't expired yet
         for tracked_bbox, obj_id, last_seen in self.tracked_objects:
-            if current_time - last_seen < self.bbox_hold_time:
+            if current_time - last_seen < self.tracking_hold_duration:
                 # Retain old boxes until the hold time expires
                 if not any(obj_id == updated_obj[1] for updated_obj in updated_objects):
                     updated_objects.append((tracked_bbox, obj_id, last_seen))

@@ -61,12 +61,11 @@ def fill_divider(index_to_fill, height=2.0, depth=30.0, center_x=0, camera_z=0):
     live_config = LiveConfig.get_instance()
     x_divider_angle = live_config.x_divider_angle
     num_divisions = live_config.num_divisions + 2  # Adjusted to include +2 as per requirement
-
     # Define the fixed angle step based on adjusted num_divisions
-    angle_step = 2 * x_divider_angle / num_divisions
+    angle_step = 2 * x_divider_angle / (num_divisions-1)
 
     # Calculate angles for the specified divider and the next one to the right
-    angle1 = -x_divider_angle + index_to_fill * angle_step
+    angle1 = -x_divider_angle + index_to_fill * angle_step 
     angle2 = angle1 + angle_step
 
     glPushMatrix()
@@ -238,14 +237,14 @@ def draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotat
                 x2d, y2d = int(x2d), int(y2d)
 
                 if 0 <= x2d < depth_image.shape[1] and 0 <= y2d < depth_image.shape[0]:
-                    depth_value = depth_image[y2d, x2d] * depth_scale
+                    depth_value = depth_image[y2d, -x2d] * depth_scale
                     if depth_value == 0:
                         continue
 
                     x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x2d, y2d], depth_value)
                     point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
                     point_3d *= -1  # Invert coordinates for consistency
-
+                    point_3d[0]*= -1
                     point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
                     cube_manager = CubeManager.get_instance()
 
@@ -307,7 +306,8 @@ def draw_movement_points(
             continue  # Skip if the head_point is None
 
         x_h, y_h, z_h = head_point
-
+        # y_h *= -1
+        # z_h *= -1
         # Set color based on active movement status
         if active_movement_type == 'person' and track_id == active_movement_id:
             glColor3f(0.0, 1.0, 0.0)  # Green for active and moving person
@@ -323,15 +323,16 @@ def draw_movement_points(
     # Draw movement points
     for obj_id, movement_point in transformed_movement_points.items():
         x_m, y_m, z_m = movement_point
-
+        # y_m *= -1
+        # z_m *= -1
         # Set color based on active movement status
         if active_movement_type == 'object' and obj_id == active_movement_id:
-            glColor3f(0.0, 180.0, 01.0)  # dark green for active object
+            glColor3f(0.0, .5, 0)  # dark green for active object
         else:
             glColor3f(1,0, 0)  # red for other objects
 
         # Draw the sphere for the movement point
         glPushMatrix()
         glTranslatef(x_m, y_m, z_m)  # Move to the movement point's location
-        gluSphere(gluNewQuadric(), 0.1, 16, 16)  # Draw a sphere with radius 0.05
+        gluSphere(gluNewQuadric(), 0.07, 16, 16)  # Draw a sphere with radius 0.05
         glPopMatrix()

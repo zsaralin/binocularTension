@@ -2,45 +2,39 @@ import time
 import math
 import socket
 import numpy as np
+from collections import deque
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from eye_widget import EyeWidget
 from live_config import LiveConfig
 from pointcloud_drawing_utils import fill_divider
+from detection_data import DetectionData
+# Access the LiveConfig instance
+# Access the LiveConfig instance
 # Access the LiveConfig instance
 live_config = LiveConfig.get_instance()
 
-# Define the hysteresis-like behavior handler
-class HysteresisHandler:
-    def __init__(self, revert_delay=0):
-        self.current_value = None
-        self.previous_value = None
-        self.last_update_time = time.time()
-        self.revert_delay = revert_delay
+# Initialize global variables
+prev_movement_id = None
+x_position_history = deque(maxlen=live_config.stable_x_thres)
+y_position_history = deque(maxlen=live_config.stable_y_thres)
+depth_history = deque(maxlen=live_config.stable_z_thres)
 
-    def update(self, new_value):
-        current_time = time.time()
+# Stores the last known stable values
+stable_x_pos = None
+stable_y_pos = None
+stable_z_pos = None
+x_direction_threshold = 5  # Threshold for detecting directional changes in x
 
-        # Update immediately if it's a new value
-        if self.current_value != new_value:
-            self.previous_value = self.current_value
-            self.current_value = new_value
-            self.last_update_time = current_time
-            return self.current_value
-
-        # Revert to previous only if no new updates within revert delay
-        if current_time - self.last_update_time >= self.revert_delay:
-            self.current_value = self.previous_value
-            self.previous_value = None  # Prevents immediate toggle back
-            return self.current_value
-
-        # Return the current value without reverting
-        return self.current_value
-
-# Initialize handlers for x, y, z values
-x_handler = HysteresisHandler()
-y_handler = HysteresisHandler()
-z_handler = HysteresisHandler()
+def update_deque_maxlen():
+    """Update deque lengths if LiveConfig threshold values have changed."""
+    global x_position_history, y_position_history, depth_history
+    if x_position_history.maxlen != live_config.stable_x_thres:
+        x_position_history = deque(x_position_history, maxlen=live_config.stable_x_thres)
+    if y_position_history.maxlen != live_config.stable_y_thres:
+        y_position_history = deque(y_position_history, maxlen=live_config.stable_y_thres)
+    if depth_history.maxlen != live_config.stable_z_thres:
+        depth_history = deque(depth_history, maxlen=live_config.stable_z_thres)
 
 def send_filename_to_server(filename):
     eye_widget = EyeWidget()
@@ -57,12 +51,94 @@ def send_filename_to_server(filename):
         print("Failed to connect to the server. Is main.py running?")
 
 def get_image(point, image_width, image_height):
-    x_pos = x_handler.update(find_x_divider_index(point))
-    y_pos = y_handler.update(get_y_position(point))
-    z_pos = z_handler.update(get_z_position(point))
-    if x_pos and y_pos and z_pos: 
-        filename = f"bt_{x_pos}_{z_pos}{y_pos}o.png"
+    detection_data = DetectionData()
+    global prev_movement_id, depth_history, y_position_history, x_position_history
+    global stable_x_pos, stable_y_pos, stable_z_pos
+
+    # Update deque lengths if thresholds have changed
+    update_deque_maxlen()
+
+    movement_id = detection_data.active_movement_id
+
+    x_pos = find_x_divider_index(point)
+    y_pos = get_y_position(point)
+    z_pos = get_z_position(point)
+
+    if movement_id == prev_movement_id:
+        # Apply different hysteresis approach for x, y, and z positions
+        stable_x_pos = apply_x_hysteresis(x_position_history, x_pos, stable_x_pos)
+        stable_y_pos = apply_hysteresis(y_position_history, y_pos, stable_y_pos, live_config.stable_y_thres)
+        stable_z_pos = apply_hysteresis(depth_history, z_pos, stable_z_pos, live_config.stable_z_thres)
+    else:
+        # Reset history and update stable positions for a new movement ID
+        x_position_history.clear()
+        y_position_history.clear()
+        depth_history.clear()
+        stable_x_pos = x_pos
+        stable_y_pos = y_pos
+        stable_z_pos = z_pos
+        prev_movement_id = movement_id
+
+    if stable_x_pos and stable_y_pos and stable_z_pos:
+        filename = f"bt_{stable_x_pos}_{stable_z_pos}{stable_y_pos}o.png"
         send_filename_to_server(filename)
+# Global variables
+current_direction = None  # 'left' or 'right'
+opposite_direction_counter = 0
+direction_change_threshold = 3  # Number of consecutive opposite movements to switch direction
+
+def apply_x_hysteresis(history, new_value, stable_value):
+    global current_direction, opposite_direction_counter
+    history.append(new_value)
+
+    # If stable_value is None, initialize it with the first value.
+    if stable_value is None:
+        stable_value = new_value
+        return stable_value
+
+    # Calculate the difference between the new value and the stable value
+    delta = new_value - stable_value
+
+    # Determine the movement direction based on the delta
+    if delta > 0:
+        new_direction = 'right'
+    elif delta < 0:
+        new_direction = 'left'
+    else:
+        # No significant movement detected
+        return stable_value
+
+    if current_direction is None:
+        # Initialize the current direction
+        current_direction = new_direction
+        stable_value = new_value
+        opposite_direction_counter = 0
+    elif new_direction == current_direction:
+        # Movement is consistent with the current direction
+        stable_value = new_value
+        opposite_direction_counter = 0
+    else:
+        # Movement in the opposite direction detected
+        opposite_direction_counter += 1
+        if opposite_direction_counter >= direction_change_threshold:
+            # Switch the current direction after consecutive detections
+            current_direction = new_direction
+            stable_value = new_value
+            opposite_direction_counter = 0
+        else:
+            # Ignore the abrupt change
+            pass
+
+    return stable_value
+
+def apply_hysteresis(history, new_value, stable_value, threshold):
+    """Standard hysteresis for y and z positions."""
+    history.append(new_value)
+    
+    if len(history) == history.maxlen and all(v == new_value for v in list(history)[-threshold:]):
+        stable_value = new_value
+
+    return stable_value
 
 def find_x_divider_index(point, center_x=0, camera_z=0, height=2.0, depth=30.0):
     x, y, z = point
@@ -70,17 +146,23 @@ def find_x_divider_index(point, center_x=0, camera_z=0, height=2.0, depth=30.0):
     delta_z = z - camera_z
     angle_to_point = math.degrees(math.atan2(delta_x, -delta_z))
     
-    live_config = LiveConfig.get_instance()
     x_divider_angle = live_config.x_divider_angle
-    num_divisions = live_config.num_divisions + 1  # Adjusted to include +1 as per requirement
+    num_divisions = live_config.num_divisions + 1
 
+    step_factor = 200 / (num_divisions - 1)
     divider_angles = [i * (2 * x_divider_angle / num_divisions) - x_divider_angle for i in range(num_divisions + 1)]
+
+    for i in range(len(divider_angles) - 1):
+        if divider_angles[i] <= angle_to_point < divider_angles[i + 1]:
+            gap_index = i
+            break
+    else:
+        gap_index = len(divider_angles) - 2
+
+    scaled_index = int(gap_index * step_factor)
+    fill_divider(gap_index)
     
-    closest_divider_angle = min(divider_angles, key=lambda a: abs(a - angle_to_point))
-    divider_index = divider_angles.index(closest_divider_angle)
-    fill_divider(divider_index)
-    
-    return divider_index
+    return scaled_index
 
 def get_y_position(point, camera_y=0):
     _, y, _ = point

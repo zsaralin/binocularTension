@@ -24,8 +24,9 @@ def get_average_depth(depth_image, x, y, depth_scale, window_size=5):
         return 0  # No valid depth in the window
     return np.mean(valid_depths) * depth_scale
 
-def smooth_point(new_point, previous_point, alpha=0):
-    """Apply exponential moving average to smooth points."""
+def smooth_point(new_point, previous_point):
+    live_config = LiveConfig.get_instance()
+    alpha = live_config.headpoint_smoothing
     if previous_point is None:
         return new_point
     if new_point is None:
@@ -53,13 +54,13 @@ def compute_general_head_points(persons_with_ids, intrinsics, depth_image, depth
                 x2d, y2d = int(x2d), int(y2d)
 
                 if 0 <= x2d < depth_image.shape[1] and 0 <= y2d < depth_image.shape[0]:
-                    depth_value = depth_image[y2d, x2d] * depth_scale
+                    depth_value = depth_image[y2d, -x2d] * depth_scale
                     if depth_value == 0:
                         continue
 
                     x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x2d, y2d], depth_value)
                     point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
-                    point_3d[0] *= -1
+                    # point_3d[0] *= -1
                     point_3d[1] *= -1
                     point_3d[2] *= -1
                     point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
@@ -83,7 +84,6 @@ def compute_general_head_points(persons_with_ids, intrinsics, depth_image, depth
                         smoothed_head_point = smooth_point(new_head_point, previous_head_points.get(track_id, new_head_point))
                         smoothed_head_points[track_id] = smoothed_head_point
                         previous_head_points[track_id] = smoothed_head_point
-
     return smoothed_head_points
 
 def compute_movement_points(drawn_objects, intrinsics, depth_image, depth_scale, rotation, translation, alpha=0.8):
@@ -104,33 +104,33 @@ def compute_movement_points(drawn_objects, intrinsics, depth_image, depth_scale,
         x_center, y_center = int((x1_t + x2_t) / 2), int((y1_t + y2_t) / 2)
 
         if 0 <= x_center < intrinsics.width and 0 <= y_center < intrinsics.height:
-            depth_value = get_average_depth(depth_image, x_center, y_center, depth_scale, window_size=5)
+            depth_value = depth_image[y_center, -x_center] * depth_scale
             if depth_value == 0:
                 continue
 
             x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x_center, y_center], depth_value)
             point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
-            point_3d[0] *= -1
+            # point_3d[0] *= -1
             point_3d[1] *= -1
             point_3d[2] *= -1
             point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
             cube_manager = CubeManager.get_instance()
 
             # Exclude point if it's within any cube
-            if cube_manager.is_point_in_cubes(point_3d):
+            if cube_manager.is_point_in_cubes(point_3d_transformed):
                 objects_outside_thresholds.append(obj_id)
                 continue
 
             # Check if point is within thresholds
             within_thresholds = (
-                x_min <= point_3d[0] <= x_max and
-                y_min <= point_3d[1] <= y_max and
-                z_min <= point_3d[2] <= z_max
+                x_min <= point_3d_transformed[0] <= x_max and
+                y_min <= point_3d_transformed[1] <= y_max and
+                z_min <= point_3d_transformed[2] <= z_max
             )
 
             if within_thresholds:
                 # Smooth and store the point if it's within thresholds
-                smoothed_point = smooth_point(point_3d, previous_movement_points.get(obj_id, point_3d), alpha)
+                smoothed_point = smooth_point(point_3d_transformed, previous_movement_points.get(obj_id, point_3d_transformed))
                 movement_points_transformed[obj_id] = smoothed_point
                 previous_movement_points[obj_id] = smoothed_point
             else:

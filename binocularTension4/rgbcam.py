@@ -52,6 +52,7 @@ class RGBWidget(QWidget):
 
         # Make a copy of the image to draw keypoints and skeleton on
         display_image = color_image.copy()
+        display_image = cv2.flip(display_image, 1)
 
         # Run detection (movement and pose) using the detector
         tracks, keypoints_data, detections, person_boxes, person_moving_status, non_person_movement_boxes, persons_with_ids = \
@@ -74,7 +75,7 @@ class RGBWidget(QWidget):
         draw_movement_boxes(non_person_movement_boxes, display_image, active_movement_id, active_movement_type,  self.detection_data)
 
         # Flip the image for a mirroring effect
-        display_image = cv2.flip(display_image, 1)
+        # display_image = cv2.flip(display_image, 1)
 
         # Convert to QImage to display in QLabel
         height, width, channel = display_image.shape
