@@ -32,6 +32,6 @@
     "stable_thres_y": 10,
     "stable_thres_z": 15,
     "detect_people": false,
-    "detect_objects": true,
+    "detect_objects": false,
     "nervousness": 0.1
 }

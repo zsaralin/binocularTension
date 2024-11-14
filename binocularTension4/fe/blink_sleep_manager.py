@@ -21,8 +21,8 @@ class BlinkSleepManager(QObject):
         self.live_config = app_instance.live_config
         self.min_blink_interval = self.live_config.min_blink_interval
         self.max_blink_interval = self.live_config.max_blink_interval
-        self.min_sleep_timeout = self.live_config.min_sleep_timeout * 1000 * 60
-        self.max_sleep_timeout = self.live_config.max_sleep_timeout * 1000 * 60
+        self.min_sleep_timeout = self.live_config.min_sleep_timeout * 500 * 60
+        self.max_sleep_timeout = self.live_config.max_sleep_timeout * 500 * 60
         self.min_random_wakeup = self.live_config.min_random_wakeup * 1000 * 60
         self.max_random_wakeup = self.live_config.max_random_wakeup * 1000 * 60
         self.inactivity_time_interval = self.live_config.inactivity_timer
@@ -45,28 +45,43 @@ class BlinkSleepManager(QObject):
         # Display off timer for the specified timeout duration
         self.display_off_timer = QTimer(self)
         self.display_off_timer.setSingleShot(True)
-        self.display_off_timer.timeout.connect(self.turn_off_display)
+        self.display_off_timer.timeout.connect(self.turn_off_display_)
 
         self.schedule_sleep_timer()
 
 
     def start_display_off_timer(self):
+        if self.display_off:
+            return
         """Start the display off timer based on the display_off_timeout_hours from the config."""
         timeout_ms = self.display_off_timeout_hours * 3600 * 1000  # Convert hours to milliseconds
         self.display_off_timer.start(timeout_ms)
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 
-    def turn_off_display(self):
-        """Turn off the display by calling the function from turnoff_display.py."""
-        print("Turning off display due to timeout.")
-        self.display_off = True
-        turn_off_display()  # Call the function to turn off the display
+    def turn_off_display_(self):
+        if not self.display_off:
+            """Turn off the display safely by pausing necessary timers."""
+            print("Preparing to turn off display due to timeout.")
+            # Pause timers that might conflict with the display being off
+            self.inactivity_timer.stop()
+            self.continuous_blink_timer.stop()
+            self.sleep_timer.stop()
+            self.random_wakeup_timer.stop()
+            
+            self.display_off = True
+            turn_off_display()  # Call the function to turn off the display
+            print("Display turned off.")
 
-    def turn_on_display(self):
-        print("Turning on display due to timeout.")
+    def turn_on_display_(self):
+        """Turn on the display and resume necessary timers."""
+        print("Turning on display.")
+        turn_on_display()  # Call the function to turn on the display
         self.display_off = False
-        turn_on_display()  # Call the function to turn off the display
-
+        
+        # Restart or reset timers as needed
+        self.reset_inactivity_timer()  # Restart the inactivity timer
+        self.exit_sleep_mode()
+        print("Timers restarted after turning on display.")
     def reset_inactivity_timer(self):
         """Resets the inactivity timer."""
         self.inactivity_timer.start(500)
@@ -109,7 +124,7 @@ class BlinkSleepManager(QObject):
 
     def enter_sleep_mode(self):
         """Enter sleep mode and display half-closed eye briefly before fully closing."""
-        if self.in_sleep_mode:
+        if self.in_sleep_mode or self.display_off:
             return
         if self.is_blinking:
             print("Waiting for blink to finish before entering sleep mode.")
@@ -169,7 +184,7 @@ class BlinkSleepManager(QObject):
 
     def random_wakeup(self):
         """Simulate a reverse blink by toggling images from closed to open and back to closed, with randomized open duration and eye position."""
-        if self.in_sleep_mode or self.app_instance.debug_mode_manager.debug_mode or self.is_blinking:
+        if self.app_instance.debug_mode_manager.debug_mode:
             print("Reverse blink skipped: in sleep mode, debug mode, or already blinking")
             return
 
@@ -184,19 +199,18 @@ class BlinkSleepManager(QObject):
         # Construct filenames for open, half-closed, and closed images with the random position
         current_filename = self.app_instance.current_filename
         base_filename = f"bt_{random_position:02d}_"
-        
-        open_eye_filename = base_filename + "o.png"
-        half_closed_eye_filename = base_filename + "h.png"
-        closed_eye_filename = base_filename + "c.png"
+                # Construct filenames for half-closed and closed images
+        half_closed_eye_filename = self.app_instance.current_filename[:-5] + "h.jpg"
+        open_eye_filename = self.app_instance.current_filename[:-5] + "o.jpg"
 
         # Start with the closed eye
-        self.display_image_signal.emit(closed_eye_filename)
+        self.display_image_signal.emit(current_filename)
 
         # Transition to half-closed, then open, and finally return to closed with randomized timing
         QTimer.singleShot(100, lambda: self.display_image_signal.emit(half_closed_eye_filename))
         QTimer.singleShot(300, lambda: self.display_image_signal.emit(open_eye_filename))
         QTimer.singleShot(300 + open_duration, lambda: self.display_image_signal.emit(half_closed_eye_filename))
-        QTimer.singleShot(400 + open_duration, lambda: self.end_blinking(closed_eye_filename))
+        QTimer.singleShot(400 + open_duration, lambda: self.end_blinking(current_filename))
 
     def end_blinking(self, original_filename):
         """End the blinking effect and reset the eye to the original state."""

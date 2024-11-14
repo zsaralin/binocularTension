@@ -143,16 +143,14 @@ def update_active_movement(general_head_points_transformed, person_moving_status
             elif active_movement_type == 'object' and active_movement_id in moving_objects:
                 active_movement = moving_objects[active_movement_id]
                 last_movement_time = current_time
-            elif active_movement_type == 'object':
+            else:
                 isLooking, active_movement, active_movement_id, active_movement_type = True, None, None, None
-
     if active_movement is not None:
         x_3d, y_3d, z_3d = active_movement[:3]
         u = (x_3d * intrinsics.fx / z_3d) + intrinsics.ppx
         v = (y_3d * intrinsics.fy / z_3d) + intrinsics.ppy
         u = max(0, min(image_width - int(u) - 1, image_width - 1))
         v = max(0, min(int(v), image_height - 1))
-
         get_image((x_3d, y_3d, z_3d), image_width, image_height)
 
     return active_movement_id, active_movement_type

@@ -9,7 +9,6 @@ from display_control_panel import DisplayControlPanelWidget  # Import the contro
 from display_live_config import DisplayLiveConfig  # Import LiveConfig for config values
 from debug_mode import DebugModeManager  # Import DebugModeManager
 from blink_sleep_manager import BlinkSleepManager  # Import the new BlinkSleepManager class
-from turnoff_display import turn_on_display  # Assuming `turnoff_display.py` has `turn_on_display`
 
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
@@ -29,6 +28,7 @@ class FullScreenBlinkApp(QWidget):
         self.filename_label.setStyleSheet("font-size: 24px; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 5px;")
         self.filename_label.setWordWrap(True)
         self.debug_mode_manager = DebugModeManager(self)
+        self.setCursor(Qt.BlankCursor)
 
         self.current_filename = "bt_20_cso.jpg"
 
@@ -88,14 +88,17 @@ class FullScreenBlinkApp(QWidget):
         """Update the display image, exit sleep mode if active, and reset timers."""
         
         # Exit sleep mode if active
-        self.blink_sleep_manager.exit_sleep_mode()
-        
+        # self.blink_sleep_manager.exit_sleep_mode()
+        # self.blink_sleep_manager.turn_on_display_()
+
         # Turn the display back on if it was turned off
         if self.blink_sleep_manager.display_off:
             # Call the function to turn on the display
-            turn_on_display()
-            # Reset display_off flag to indicate display is now on
             self.blink_sleep_manager.display_off = False
+
+            self.blink_sleep_manager.turn_on_display_()
+            return
+            # Reset display_off flag to indicate display is now on
         
         # Proceed with updating the image if not blinking or in wakeup
         if not self.blink_sleep_manager.is_blinking and not self.blink_sleep_manager.in_wakeup:
@@ -126,9 +129,11 @@ class FullScreenBlinkApp(QWidget):
     def toggle_control_panel(self):
         """Toggle the control panel visibility."""
         if self.control_panel is None:
-            self.control_panel = DisplayControlPanelWidget(self.debug_mode_manager)
+            self.control_panel = DisplayControlPanelWidget(self.debug_mode_manager, self)
             self.control_panel.show()
+            self.setCursor(Qt.ArrowCursor)
         else:
+            self.setCursor(Qt.BlankCursor)
             self.control_panel.close()
             self.control_panel = None
 

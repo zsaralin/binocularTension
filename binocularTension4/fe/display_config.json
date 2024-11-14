@@ -2,10 +2,10 @@
     "min_blink_interval": 3000,
     "max_blink_interval": 6000,
     "min_sleep_timeout": 1,
-    "max_sleep_timeout": 3,
+    "max_sleep_timeout": 1,
     "min_random_wakeup":1,
     "max_random_wakeup" : 3, 
     "inactivity_timer" : 2,
-    "display_off_timeout" : 5
+    "display_off_timeout" : 1
 
 }

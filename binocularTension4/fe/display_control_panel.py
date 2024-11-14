@@ -18,12 +18,12 @@ class DisplayControlPanelWidget(QWidget):
     inactivity_timer_changed = pyqtSignal(int)
     display_off_timeout_changed = pyqtSignal(int)  # New signal for display off timeout
 
-    def __init__(self, display, parent=None):  # Add display parameter
+    def __init__(self, display, main_display, parent=None):  # Add display parameter
         super(DisplayControlPanelWidget, self).__init__(parent)
         self.display = display
         self.config = self.load_config()
         self.live_config = DisplayLiveConfig.get_instance()  # Access LiveConfig singleton instance
-
+        self.main_display = main_display
         # Initialize target lists with single elements for each setting
         self.min_blink_interval = [self.config.get("min_blink_interval", 3000)]
         self.max_blink_interval = [self.config.get("max_blink_interval", 6000)]
@@ -46,6 +46,10 @@ class DisplayControlPanelWidget(QWidget):
         # Initialize the UI and sliders
         self.init_ui()
         self.sync_with_live_config()  # Update LiveConfig with initial values
+    def closeEvent(self, event):
+            """Handle the close event to hide the cursor on the main display."""
+            self.main_display.setCursor(Qt.BlankCursor)  # Hide the cursor on close
+            super().closeEvent(event)
 
     def load_config(self):
         if os.path.exists('display_config.json'):

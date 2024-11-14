@@ -1,0 +1,8 @@
+pyrealsense2
+numpy
+opencv-python-headless
+PyQt5
+PyOpenGl
+Pillow
+ultralytics
+deep_sort_realtime
