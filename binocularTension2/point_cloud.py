@@ -247,7 +247,6 @@ def render_point_cloud(depth_frame, total_rotation, total_translation, intrinsic
     pyglet_image_data = pyglet.image.ImageData(640, 480, 'RGB', buffer)
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
     return pyglet_image_data
 
 previous_movement_points = {}

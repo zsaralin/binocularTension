@@ -1,6 +1,0 @@
-{
-    "min_blink_interval": 3000,
-    "max_blink_interval": 6000,
-    "sleep_timeout": 3,
-    "inactivity_timer" : 2
-}
