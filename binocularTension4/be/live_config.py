@@ -10,6 +10,7 @@ class LiveConfig:
         return cls._instance
 
     def reset_to_defaults(self):
+        self.version = "Jade"
         self.rotate_x = 0
         self.rotate_y = 0
         self.rotate_z = 0
@@ -18,7 +19,9 @@ class LiveConfig:
         self.translate_z = 0
         self.camera_z = 0
         self.y_top_divider = 0
+        self.y_top_divider_angle = 0
         self.y_bottom_divider = 0
+        self.y_bottom_divider_angle = 0
         self.y_top_divider_object = 0
         self.y_bottom_divider_object = 0
         self.x_divider_angle = 0
@@ -49,7 +52,6 @@ class LiveConfig:
         self.stable_z_thres = 0
         self.detect_people = True
         self.detect_objects = True
-        self.nervousness = 0.3
     # Accessor for the singleton instance
     @classmethod
     def get_instance(cls):

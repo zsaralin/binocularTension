@@ -104,30 +104,6 @@ def clamp(value, min_val, max_val):
     """Helper function to clamp a value within a specified range."""
     return max(min(value, max_val), min_val)
 
-def apply_forced_opposite_direction(stable_value, current_direction, forced_opposite_direction_count, original_position):
-    global forced_opposite_direction_duration  # Reference the global duration variable
-
-    # Apply a jump with probability when starting in the opposite direction
-    if forced_opposite_direction_count == forced_opposite_direction_duration and random.random() < jump_probability:
-        jump_size = random.randint(2, 5)
-        forced_opposite_direction_duration = 2 + (jump_size // 3)
-        # Add the jump in the opposite direction and clamp the result
-        stable_value += (-jump_size if current_direction == 'right' else jump_size)
-        stable_value = clamp(stable_value, 0, 41)
-    else:
-        # Move in the opposite direction by 1 step
-        stable_value += (-1 if current_direction == 'right' else 1)
-        stable_value = clamp(stable_value, 0, 41)
-
-    forced_opposite_direction_count -= 1
-
-    # Once forced movement is done, set up for a jump back to the original position
-    if forced_opposite_direction_count == 0:
-        stable_value = original_position  # Jump back to the original position
-        original_position = None  # Reset the original position
-
-    return stable_value, forced_opposite_direction_count, original_position
-
 def apply_x_hysteresis(history, new_value, stable_value):
     global current_direction, opposite_direction_counter
     global forced_opposite_direction_count, original_position
@@ -153,41 +129,17 @@ def apply_x_hysteresis(history, new_value, stable_value):
         # No significant movement detected
         return stable_value
 
-    # Handle forced opposite direction
-    if forced_opposite_direction_count > 0:
-        stable_value, forced_opposite_direction_count, original_position = apply_forced_opposite_direction(
-            stable_value, current_direction, forced_opposite_direction_count, original_position
-        )
-        return stable_value
-
-    # Normal processing of direction tracking
     if current_direction is None:
-        # Initialize the current direction
         current_direction = new_direction
         stable_value = new_value
         opposite_direction_counter = 0
     elif new_direction == current_direction:
-        # Movement is consistent with the current direction
         stable_value = new_value
         opposite_direction_counter += 1
     else:
-        # Movement in the opposite direction
         opposite_direction_counter = 0
         current_direction = new_direction
         stable_value = new_value
-
-    # Trigger forced opposite direction after reaching a random threshold
-    if opposite_direction_counter >= direction_change_threshold:
-        # Check if the mechanism should trigger based on probability
-        if random.random() < live_config.nervousness:
-            # Save the current stable position as the original position before forced movement
-            original_position = stable_value
-            # Randomize direction change threshold again for the next cycle
-            direction_change_threshold = random.randint(5, 10)
-            # Start moving in the opposite direction for a few frames
-            forced_opposite_direction_count = forced_opposite_direction_duration
-        # Reset the opposite direction counter regardless
-        opposite_direction_counter = 0
 
     return stable_value
 
@@ -225,26 +177,56 @@ def find_x_divider_index(point, center_x=0, height=2.0, depth=30.0):
 
     # Call fill_divider for the identified gap index to fill it
     fill_divider(gap_index, height=height, depth=depth, center_x=center_x)
-    
     return gap_index
 
 def get_y_position(point, detection_data, camera_y=0):
-    _, y, _ = point
+    import math
+
+    # Unpack point coordinates
+    x, y, z = point
     movement_type = detection_data.active_movement_type
+
+    # Access the LiveConfig instance
+    live_config = LiveConfig.get_instance()
+
     if movement_type == "person":
         # Use dividers for person movement
         y_top_divider = live_config.y_top_divider
         y_bottom_divider = live_config.y_bottom_divider
+        y_top_divider_angle = live_config.y_top_divider_angle
+        y_bottom_divider_angle = live_config.y_bottom_divider_angle
     else:
         # Use dividers for object movement
         y_top_divider = live_config.y_top_divider_object
         y_bottom_divider = live_config.y_bottom_divider_object
-    if y > camera_y + y_top_divider:
-        return 'u'
-    elif y < camera_y - y_bottom_divider:
-        return 'd'
+        y_top_divider_angle = live_config.y_top_divider_angle
+        y_bottom_divider_angle = live_config.y_bottom_divider_angle
+
+    # Convert angles from degrees to radians
+    angle_top_rad = math.radians(y_top_divider_angle)
+    angle_bottom_rad = math.radians(y_bottom_divider_angle)
+
+    # Calculate normal vectors for the planes
+    cos_theta_top = math.cos(angle_top_rad)
+    sin_theta_top = math.sin(angle_top_rad)
+    cos_theta_bottom = math.cos(angle_bottom_rad)
+    sin_theta_bottom = math.sin(angle_bottom_rad)
+
+    # Plane positions relative to the camera
+    y0_top = camera_y + y_top_divider
+    y0_bottom = camera_y - y_bottom_divider
+
+    # Compute signed distances from the point to the top and bottom planes
+    D_top = cos_theta_top * (y - y0_top) + sin_theta_top * z
+    D_bottom = cos_theta_bottom * (y - y0_bottom) + sin_theta_bottom * z
+
+    # Determine the position relative to the planes
+    if D_top > 0:
+        return 'u'  # Above the top plane
+    elif D_bottom < 0:
+        return 'd'  # Below the bottom plane
     else:
-        return 's'
+        return 's'  # Between the planes
 
 def define_depth_plane_segments(camera_z=0, segments=20):
     depth_offset = -live_config.z_divider

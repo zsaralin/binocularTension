@@ -48,12 +48,11 @@ closest_check_time = time.time()  # Time of the last closest person check
 closest_person_candidate = None  # Temporary closest person candidate
 closest_person_frames = 0  # Number of consecutive frames this candidate has been the closest
 frames_needed = 2  # Minimum frames needed to confirm a person as the closest
-closest_check_interval = 15
+closest_check_interval = 0
 def update_active_movement(general_head_points_transformed, person_moving_status, movement_points_transformed, image_width, image_height, intrinsics):
     """Update active movement variables based on both persons and objects."""
     global active_movement, active_movement_type, active_movement_id, isLooking, last_movement_time, last_tracked_time, closest_check_time
     global closest_person_candidate, closest_person_frames, frames_needed
-    
     live_config = LiveConfig.get_instance()
     current_time = time.time()
     extended_timeout = live_config.extended_timeout * 60  # Convert minutes to seconds if it's in minutes
@@ -77,7 +76,6 @@ def update_active_movement(general_head_points_transformed, person_moving_status
             last_movement_time, last_tracked_time = current_time, current_time
         else:
             last_tracked_time = current_time
-
     if live_config.always_closest and active_movement_type == 'person' and (current_time - closest_check_time >= closest_check_interval):
         closest_check_time = current_time
         min_depth, closest_person_id = -float('inf'), None
@@ -87,7 +85,7 @@ def update_active_movement(general_head_points_transformed, person_moving_status
             if depth > min_depth:
                 min_depth, closest_person_id = depth, track_id
 
-        if closest_person_id is not None and closest_person_id != active_movement_id:
+        if closest_person_id is not None:# and closest_person_id != active_movement_id:
             active_movement_id = closest_person_id
             active_movement = moving_persons[active_movement_id]
             last_movement_time, last_tracked_time = current_time, current_time

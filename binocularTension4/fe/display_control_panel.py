@@ -15,7 +15,6 @@ class DisplayControlPanelWidget(QWidget):
     max_sleep_timeout_changed = pyqtSignal(int)
     min_random_wakeup_changed = pyqtSignal(int)  # New signal for min random wakeup
     max_random_wakeup_changed = pyqtSignal(int)  # New signal for max random wakeup
-    inactivity_timer_changed = pyqtSignal(int)
     display_off_timeout_changed = pyqtSignal(int)  # New signal for display off timeout
 
     def __init__(self, display, main_display, parent=None):  # Add display parameter
@@ -24,15 +23,25 @@ class DisplayControlPanelWidget(QWidget):
         self.config = self.load_config()
         self.live_config = DisplayLiveConfig.get_instance()  # Access LiveConfig singleton instance
         self.main_display = main_display
+
         # Initialize target lists with single elements for each setting
         self.min_blink_interval = [self.config.get("min_blink_interval", 3000)]
         self.max_blink_interval = [self.config.get("max_blink_interval", 6000)]
-        self.min_sleep_timeout = [self.config.get("min_sleep_timeout", 1)]  # Default 1 minute
-        self.max_sleep_timeout = [self.config.get("max_sleep_timeout", 3)]  # Default 3 minutes
-        self.min_random_wakeup = [self.config.get("min_random_wakeup", 1)]  # Default 1 minute
-        self.max_random_wakeup = [self.config.get("max_random_wakeup", 3)]  # Default 3 minutes
-        self.inactivity_timer = [self.config.get("inactivity_timer", 2)]  # Default inactivity timer in minutes
+        self.min_sleep_timeout = [self.config.get("min_sleep_timeout", 60)]  # Default 1 minute
+        self.max_sleep_timeout = [self.config.get("max_sleep_timeout", 180)]  # Default 3 minutes
+        self.min_random_wakeup = [self.config.get("min_random_wakeup", 60)]  # Default 1 minute
+        self.max_random_wakeup = [self.config.get("max_random_wakeup", 180)]  # Default 3 minutes
+        self.blink_speed = [self.config.get("blink_speed", 5)]
+        self.jitter_start_delay = [self.config.get("jitter_start_delay", 120)]
+        self.large_jitter_start_delay = [self.config.get("large_jitter_start_delay", 300)]  # Default 5 minutes
+        self.min_jitter_interval = [self.config.get("min_jitter_interval", 3000)]
+        self.max_jitter_interval = [self.config.get("max_jitter_interval", 6000)]
+        self.min_jitter_speed = [self.config.get("min_jitter_speed", 1)]  # Default minimum speed
+        self.max_jitter_speed = [self.config.get("max_jitter_speed", 10)]  # Default maximum speed
         self.display_off_timeout = [self.config.get("display_off_timeout", 5)]  # Default 5 seconds
+        self.stretch_x = [self.config.get("stretch_x", 0)]  # Default 5 seconds
+        self.stretch_y = [self.config.get("stretch_y", 0)]  # Default 5 seconds
+        self.nervousness = [self.config.get("nervousness", 0)]  # Default 5 seconds
 
         # Initialize checkbox states
         self.checkbox_states = {
@@ -46,10 +55,11 @@ class DisplayControlPanelWidget(QWidget):
         # Initialize the UI and sliders
         self.init_ui()
         self.sync_with_live_config()  # Update LiveConfig with initial values
+
     def closeEvent(self, event):
-            """Handle the close event to hide the cursor on the main display."""
-            self.main_display.setCursor(Qt.BlankCursor)  # Hide the cursor on close
-            super().closeEvent(event)
+        """Handle the close event to hide the cursor on the main display."""
+        self.main_display.setCursor(Qt.BlankCursor)  # Hide the cursor on close
+        super().closeEvent(event)
 
     def load_config(self):
         if os.path.exists('display_config.json'):
@@ -57,15 +67,23 @@ class DisplayControlPanelWidget(QWidget):
                 return json.load(config_file)
         else:
             return {
-                "min_blink_interval": 3000,
-                "max_blink_interval": 6000,
-                "min_sleep_timeout": 1,
-                "max_sleep_timeout": 3,
-                "min_random_wakeup": 1,
-                "max_random_wakeup": 3,
-                "inactivity_timer": 2,
-                "display_off_timeout": 5
-
+                "min_blink_interval": 180,
+                "max_blink_interval": 360,
+                "min_sleep_timeout": 60,
+                "max_sleep_timeout": 180,
+                "min_random_wakeup": 60,
+                "max_random_wakeup": 180,
+                "blink_speed": 5,
+                "jitter_start_delay": 120,
+                "large_jitter_start_delay": 300,
+                "min_jitter_interval": 180,
+                "max_jitter_interval": 360,
+                "min_jitter_speed": 1,
+                "max_jitter_speed": 10,
+                "display_off_timeout": 5,
+                "stretch_x": 0,
+                "stretch_y": 0,
+                "nervousness": 0
             }
 
     def save_config(self):
@@ -76,9 +94,17 @@ class DisplayControlPanelWidget(QWidget):
             "max_sleep_timeout": self.max_sleep_timeout[0],
             "min_random_wakeup": self.min_random_wakeup[0],
             "max_random_wakeup": self.max_random_wakeup[0],
-            "inactivity_timer": self.inactivity_timer[0],
-            "display_off_timeout": self.display_off_timeout[0]
-
+            "blink_speed": self.blink_speed[0],
+            "jitter_start_delay": self.jitter_start_delay[0],
+            "large_jitter_start_delay": self.large_jitter_start_delay[0],
+            "min_jitter_interval": self.min_jitter_interval[0],
+            "max_jitter_interval": self.max_jitter_interval[0],
+            "min_jitter_speed": self.min_jitter_speed[0],
+            "max_jitter_speed": self.max_jitter_speed[0],
+            "display_off_timeout": self.display_off_timeout[0],
+            "stretch_x": self.stretch_x[0],
+            "stretch_y": self.stretch_y[0],
+            "nervousness": self.nervousness[0]
         }
         with open('display_config.json', 'w') as config_file:
             json.dump(config_data, config_file, indent=4)
@@ -92,8 +118,16 @@ class DisplayControlPanelWidget(QWidget):
         self.live_config.max_sleep_timeout = self.max_sleep_timeout[0]
         self.live_config.min_random_wakeup = self.min_random_wakeup[0]
         self.live_config.max_random_wakeup = self.max_random_wakeup[0]
-        self.live_config.inactivity_timer = self.inactivity_timer[0]
+        self.live_config.blink_speed = self.blink_speed[0]
+        self.live_config.jitter_start_delay = self.jitter_start_delay[0]
+        self.live_config.large_jitter_start_delay = self.large_jitter_start_delay[0]
+        self.live_config.min_jitter_interval = self.min_jitter_interval[0]
+        self.live_config.max_jitter_interval = self.max_jitter_interval[0]
+        self.live_config.min_jitter_speed = self.min_jitter_speed[0]
+        self.live_config.max_jitter_speed = self.max_jitter_speed[0]
         self.live_config.display_off_timeout = self.display_off_timeout[0]
+        self.live_config.stretch_x = self.stretch_x[0]
+        self.live_config.stretch_y = self.stretch_y[0]
 
 
     def update_checkbox_state(self, checkbox_name, state):
@@ -103,19 +137,34 @@ class DisplayControlPanelWidget(QWidget):
         main_layout = QVBoxLayout(self)
 
         # Add min and max blink interval sliders
-        self.create_slider_group(main_layout, "Min Blink Interval (ms)", self.min_blink_interval, 1000, 10000, 100)
-        self.create_slider_group(main_layout, "Max Blink Interval (ms)", self.max_blink_interval, 1000, 20000, 100)
+        self.create_slider_group(main_layout, "Min Blink Interval (s)", self.min_blink_interval, 1, 1000, 100)
+        self.create_slider_group(main_layout, "Max Blink Interval (s)", self.max_blink_interval, 1, 1000, 100)
 
-        # Add sleep timeout slider
-        self.create_slider_group(main_layout, "Min Sleep Timeout (s)", self.min_sleep_timeout, 1, 15, 1)
-        self.create_slider_group(main_layout, "Max Sleep Timeout (s)", self.max_sleep_timeout, 1, 15, 1)
+        # Add sleep timeout sliders
+        self.create_slider_group(main_layout, "Min Sleep Timeout (s)", self.min_sleep_timeout, 1, 300, 1)
+        self.create_slider_group(main_layout, "Max Sleep Timeout (s)", self.max_sleep_timeout, 1, 300, 1)
         
-        self.create_slider_group(main_layout, "Min Random Wakeup (s)", self.min_random_wakeup, 1, 15, 1)
-        self.create_slider_group(main_layout, "Max Random Wakeup (s)", self.max_random_wakeup, 1, 15, 1)
+        # Add random wakeup sliders
+        self.create_slider_group(main_layout, "Min Random Wakeup (s)", self.min_random_wakeup, 1, 300, 1)
+        self.create_slider_group(main_layout, "Max Random Wakeup (s)", self.max_random_wakeup, 1, 300, 1)
 
-        # Add inactivity timer slider (1-5 seconds)
-        self.create_slider_group(main_layout, "Inactivity Timer (s)", self.inactivity_timer, 1, 5, 1)
+        # Add jitter-related sliders
+        self.create_slider_group(main_layout, "Jitter Start Delay (s)", self.jitter_start_delay, 1, 1000, 1)
+        self.create_slider_group(main_layout, "Large Jitter Start Delay (s)", self.large_jitter_start_delay, 1, 1000, 1)
+        self.create_slider_group(main_layout, "Min Jitter Speed (ms)", self.min_jitter_speed, 100, 1000, 1)
+        self.create_slider_group(main_layout, "Max Jitter Speed (ms)", self.max_jitter_speed, 1001, 1000, 1)
+        self.create_slider_group(main_layout, "Min Jitter Interval (s)", self.min_jitter_interval, 1, 300, 1)
+        self.create_slider_group(main_layout, "Max Jitter Interval (s)", self.max_jitter_interval, 1, 300, 1)
 
+        # Add blink speed slider
+        self.create_slider_group(main_layout, "Blink Speed", self.blink_speed, 1, 10, 1)
+
+        # Add stretch sliders
+        self.create_slider_group(main_layout, "Stretch X", self.stretch_x, 1, 1.5, 0.01)
+        self.create_slider_group(main_layout, "Stretch Y", self.stretch_y, 1, 1.5, 0.01)
+
+        # Add nervousness slider
+        self.create_slider_group(main_layout, "Nervousness", self.nervousness, 0, 1, 0.1)
         # Add checkboxes
         checkbox_layout = QVBoxLayout()
         self.debug_checkbox = QCheckBox("Debug")
@@ -194,26 +243,39 @@ class DisplayControlPanelWidget(QWidget):
         main_layout.addWidget(save_button)
 
         self.setLayout(main_layout)
-
     def create_slider_group(self, layout, label_text, target_list, min_val, max_val, step):
+        """
+        Create a slider group that works with a step of 0.1 and updates the target list.
+        """
         hbox = QHBoxLayout()
-        scaled_value = target_list[0]
+        
+        # Scale values to integers for the slider
+        scaled_min = int(min_val / step)
+        scaled_max = int(max_val / step)
+        scaled_value = int(target_list[0] / step)
 
         label = QLabel(label_text)
         slider = QSlider(Qt.Horizontal)
-        slider.setMinimum(min_val)
-        slider.setMaximum(max_val)
+        slider.setMinimum(scaled_min)
+        slider.setMaximum(scaled_max)
         slider.setValue(scaled_value)
-        slider.setSingleStep(step)
-        value_label = QLabel(f"{scaled_value}")
+
+        value_label = QLabel(f"{target_list[0]:.1f}")
         value_label.setAlignment(Qt.AlignRight)
-        input_field = QLineEdit(f"{scaled_value}")
+        input_field = QLineEdit(f"{target_list[0]:.1f}")
         input_field.setFixedWidth(50)
         input_field.setAlignment(Qt.AlignCenter)
 
-        input_field.returnPressed.connect(lambda: self.update_slider_from_input(input_field, slider, min_val, max_val, step))
-        slider.valueChanged.connect(lambda value: self.update_value_display(value_label, input_field, value))
-        slider.valueChanged.connect(lambda value: self.update_value(target_list, value))
+        # Connect input and slider interactions
+        input_field.returnPressed.connect(
+            lambda: self.update_slider_from_input(input_field, slider, min_val, max_val, step)
+        )
+        slider.valueChanged.connect(
+            lambda value: self.update_value_display(value_label, input_field, value * step)
+        )
+        slider.valueChanged.connect(
+            lambda value: self.update_value(target_list, value * step)
+        )
 
         hbox.addWidget(label)
         hbox.addWidget(slider)
@@ -247,13 +309,23 @@ class DisplayControlPanelWidget(QWidget):
         elif target_list is self.max_random_wakeup:
             self.live_config.max_random_wakeup = value
             self.max_random_wakeup_changed.emit(value)  # Emit signal for max random wakeup
-        elif target_list is self.inactivity_timer:
-            self.live_config.inactivity_timer = value * 1000  # Convert seconds to milliseconds
-            self.inactivity_timer_changed.emit(value)
+        elif target_list is self.blink_speed:
+            self.live_config.blink_speed = value
+        elif target_list is self.jitter_start_delay:
+            self.live_config.jitter_start_delay = value
+        elif target_list is self.min_jitter_interval:
+            self.live_config.min_jitter_interval = value
+        elif target_list is self.max_jitter_interval:
+            self.live_config.max_jitter_interval = value
         elif target_list is self.display_off_timeout:
             self.live_config.display_off_timeout = value
             self.display_off_timeout_changed.emit(value)
-
+        elif target_list is self.stretch_x:
+            self.live_config.stretch_x = value
+        elif target_list is self.stretch_y:
+            self.live_config.stretch_y = value
+        elif target_list is self.nervousness:
+            self.live_config.nervousness = value
     def sync_with_live_config(self):
         """Updates the live configuration with current values."""
         self.live_config.min_blink_interval = self.min_blink_interval[0]
@@ -262,8 +334,11 @@ class DisplayControlPanelWidget(QWidget):
         self.live_config.max_sleep_timeout = self.max_sleep_timeout[0]
         self.live_config.min_random_wakeup = self.min_random_wakeup[0]
         self.live_config.max_random_wakeup = self.max_random_wakeup[0]
-        self.live_config.inactivity_timer = self.inactivity_timer[0] * 1000  # Convert seconds to milliseconds
+        self.live_config.blink_speed = self.blink_speed[0]
         self.live_config.display_off_timeout = self.display_off_timeout[0]  
+        self.live_config.stretch_x = self.stretch_x[0]  
+        self.live_config.stretch_y = self.stretch_y[0]  
+        self.live_config.nervousness = self.nervousness[0]  
 
     def update_slider_from_input(self, input_field, slider, min_val, max_val, step):
         try:

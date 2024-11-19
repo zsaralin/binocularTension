@@ -129,36 +129,49 @@ def fill_divider(index_to_fill, height=2.0, depth=30.0, center_x=0):
     glDepthMask(GL_TRUE)
     glDisable(GL_BLEND)
     glPopMatrix()
-    
-def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0):
-    """
-    Draw two horizontal lines based on y_top_divider and y_bottom_divider values
-    from the control panel, positioned at the specified depth in front of the camera.
-    """
+def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0, num_slices=80):
     # Access the LiveConfig instance
     live_config = LiveConfig.get_instance()
-    # Get y_top_divider and y_bottom_divider from control_panel's divider configuration
+
+    # Get divider values from LiveConfig
     y_top_divider = live_config.y_top_divider
     y_bottom_divider = live_config.y_bottom_divider
+    y_top_divider_angle = live_config.y_top_divider_angle
+    y_bottom_divider_angle = live_config.y_bottom_divider_angle
 
-    # Calculate the y positions for the lines based on divider values
-    y_positions = [
-        camera_y + y_top_divider,
-        camera_y - y_bottom_divider
+    # Calculate the y positions for the planes based on divider values
+    dividers = [
+        (camera_y + y_top_divider, y_top_divider_angle),  # Top divider with its angle
+        (camera_y - y_bottom_divider, y_bottom_divider_angle),  # Bottom divider with its angle
     ]
 
-    # Loop through each y position and draw a line
-    for y in y_positions:
+    # Loop through each divider position and angle to draw the wireframe plane
+    for y, angle in dividers:
         glPushMatrix()  # Save the current matrix
-        glColor3f(0.5, 0.5, 0.5)  # Light gray color for visibility
+        glColor4f(0.5, 0.5, 0.5, 0.5)  # Light gray color with moderate transparency
 
-        # Translate to the starting position of the line
-        glTranslatef(0, y, -depth / 2)
+        # Translate to the starting position of the plane
+        glTranslatef(0, y, 0)
 
-        # Draw the horizontal line as a single line segment
+        # Apply rotation to tilt the plane
+        glRotatef(angle, 1.0, 0.0, 0.0)  # Rotate around the x-axis for tilt
+
+        # Draw the outer border of the plane
+        glBegin(GL_LINE_LOOP)
+        glVertex3f(-width / 2, 0.0, 0.0)  # Bottom-left corner
+        glVertex3f(width / 2, 0.0, 0.0)   # Bottom-right corner
+        glVertex3f(width / 2, 0.0, -depth)  # Top-right corner (extending into -z)
+        glVertex3f(-width / 2, 0.0, -depth)  # Top-left corner (extending into -z)
+        glEnd()
+
+        # Draw the internal grid lines
         glBegin(GL_LINES)
-        glVertex3f(-width / 2, 0.0, 0.0)  # Left end of the line
-        glVertex3f(width / 2, 0.0, 0.0)   # Right end of the line
+        # Vertical lines (along depth)
+        for i in range(num_slices + 1):
+            x = -width / 2 + i * (width / num_slices)
+            glVertex3f(x, 0.0, 0.0)  # Near edge
+            glVertex3f(x, 0.0, -depth)  # Far edge
+
         glEnd()
 
         glPopMatrix()  # Restore the previous matrix

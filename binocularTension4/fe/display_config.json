@@ -1,11 +1,20 @@
 {
-    "min_blink_interval": 3000,
-    "max_blink_interval": 6000,
-    "min_sleep_timeout": 1,
-    "max_sleep_timeout": 1,
-    "min_random_wakeup":1,
-    "max_random_wakeup" : 3, 
-    "inactivity_timer" : 2,
-    "display_off_timeout" : 1
+    "min_blink_interval": 3,
+    "max_blink_interval": 8,
+    "min_sleep_timeout": 15,
+    "max_sleep_timeout": 15,
+    "min_random_wakeup":5,
+    "max_random_wakeup" : 15, 
+    "jitter_start_delay" : 2,
+    "large_jitter_start_delay" : 2,
+    "min_jitter_interval" : 3,
+    "max_jitter_interval" : 6,
+    "min_jitter_speed" : 100,
+    "max_jitter_speed": 1000,
+    "display_off_timeout" : 1,
+    "blinking_speed" : 1, 
+    "stretch_x": 1,
+    "stretch_y" : 1 ,
+    "nervousness" : 0.4
 
 }

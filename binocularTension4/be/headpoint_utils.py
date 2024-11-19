@@ -87,7 +87,6 @@ def compute_general_head_points(persons_with_ids, intrinsics, depth_image, depth
             smoothed_head_point = smooth_point(new_head_point, previous_head_points.get(track_id, new_head_point))
             smoothed_head_points[track_id] = smoothed_head_point
             previous_head_points[track_id] = smoothed_head_point
-
     return smoothed_head_points
 
 def compute_movement_points(drawn_objects, intrinsics, depth_image, depth_scale, rotation, translation, alpha=0.8):

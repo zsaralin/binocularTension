@@ -187,9 +187,9 @@ class GLWidget(QGLWidget):
         # Always re-draw stored headpoints, keypoints, and other elements
             draw_movement_points(self.headpoints_transformed, self.movement_points_transformed, self.active_movement_id, self.active_movement_type)
         if self.live_config.draw_planes:
-            draw_vertical_dividers()
+            # draw_vertical_dividers()
             draw_horizontal_dividers()
-            draw_depth_plane()
+            # draw_depth_plane()
         self.cube_manager.draw_cubes()
             
 

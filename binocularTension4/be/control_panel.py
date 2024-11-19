@@ -1,12 +1,13 @@
 import json
 import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox, QRadioButton, QButtonGroup
 )
 from PyQt5.QtCore import Qt
 from cube_utils.cube_edit_dialog import CubeEditDialog
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
+from version import switch_folder_on_server
 
 class ControlPanelWidget(QWidget):
     def __init__(self, parent=None):
@@ -16,6 +17,7 @@ class ControlPanelWidget(QWidget):
         # Load configuration from file or use defaults
         self.config = self.load_config()
         self.cube_manager = CubeManager.get_instance()
+        self.version = [self.config.get("version")]  
 
         # Initialize settings
         self.rotation = [
@@ -26,19 +28,21 @@ class ControlPanelWidget(QWidget):
         ]
         self.divider = [
             self.config['camera_z'], 
-            self.config['y_top_divider'], self.config['y_bottom_divider'], self.config['y_top_divider_object'], self.config['y_bottom_divider_object'], 
-            self.config['x_divider_angle'], self.config['z_divider'], self.config['z_divider_curve'], self.config['draw_planes']
+            self.config['y_top_divider'], self.config['y_bottom_divider'], 
+            self.config['y_top_divider_object'], self.config['y_bottom_divider_object'], 
+            self.config['x_divider_angle'], self.config['z_divider'], 
+            self.config['z_divider_curve'],
+            self.config['y_top_divider_angle'], self.config['y_bottom_divider_angle'], self.config['draw_planes']  # New angles
         ]
         self.movement = [
-            self.config['min_contour_area'], self.config['person_movement_thres'], self.config['headpoint_smoothing'], self.config['tracking_hold_duration'],
-            self.config['extended_timeout'], self.config['always_closest']
+            self.config['min_contour_area'], self.config['person_movement_thres'], self.config['headpoint_smoothing'], 
+            self.config['tracking_hold_duration'], self.config['extended_timeout'], self.config['always_closest']
         ]
         self.smoothing = [
-                self.config['stable_thres_x'], self.config['stable_thres_y'], self.config['stable_thres_z']
+            self.config['stable_thres_x'], self.config['stable_thres_y'], self.config['stable_thres_z']
         ]
         self.point_size = [self.config.get("point_size", 2)]  # Single-item list for point size
         self.num_divisions = [self.config.get("num_divisions", 10)]  # Single-item list for num_divisions
-        self.image_selection = [self.config.get("nervousness")]  # Fixed syntax for getting "nervousness"
 
         # Threshold settings
         self.thresholds = [
@@ -46,7 +50,7 @@ class ControlPanelWidget(QWidget):
             self.config.get('y_threshold_min', 0), self.config.get('y_threshold_max', 10),
             self.config.get('z_threshold_min', 0), self.config.get('z_threshold_max', 10)
         ]
-        self.detection_type = [self.config.get("detect_people"), self.config.get("detect_objects")]  # Single-item list for num_divisions
+        self.detection_type = [self.config.get("detect_people"), self.config.get("detect_objects")]  
 
         # Set up the scrollable layout and UI elements
         self.init_ui()
@@ -59,13 +63,14 @@ class ControlPanelWidget(QWidget):
         else:
             # Defaults for config parameters
             return {
+                "version": "Jade",
                 "rotate_x": 0,
                 "rotate_y": 0,
                 "rotate_z": 0,
                 "translate_x": 0,
                 "translate_y": 0,
                 "translate_z": 0,
-                "camera_z" : 0,
+                "camera_z": 0,
                 "y_top_divider": 0,
                 "y_bottom_divider": 0,
                 "y_top_divider_object": 0,
@@ -74,14 +79,16 @@ class ControlPanelWidget(QWidget):
                 "z_divider": 0,
                 "z_divider_curve": 0,
                 "draw_planes": True,
+                "y_top_divider_angle": 0,  # Default angle
+                "y_bottom_divider_angle": 0,  # Default angle
                 "min_contour_area": 500,
                 "person_movement_thres": 0.01,
-                "headpoint_smoothing" : 0.5, 
-                "tracking_hold_duration" : 5, 
-                "extended_timeout" : 2,
-                "always_closest" : True, 
-                "point_size": 2,  # Default point size
-                "num_divisions": 10,  # Default number of divisions
+                "headpoint_smoothing": 0.5,
+                "tracking_hold_duration": 5,
+                "extended_timeout": 2,
+                "always_closest": True,
+                "point_size": 2,
+                "num_divisions": 10,
                 "x_threshold_min": 0,
                 "x_threshold_max": 10,
                 "y_threshold_min": 0,
@@ -92,19 +99,19 @@ class ControlPanelWidget(QWidget):
                 "stable_thres_y": 0,
                 "stable_thres_z": 10,
                 "detect_people": True,
-                "detect_objects": True,
-                "nervousness": .3, 
+                "detect_objects": True
             }
 
     def save_config(self):
         config = {
+            "version": self.version[0],
             "rotate_x": self.rotation[0],
             "rotate_y": self.rotation[1],
             "rotate_z": self.rotation[2],
             "translate_x": self.translation[0],
             "translate_y": self.translation[1],
             "translate_z": self.translation[2],
-            "camera_z" : self.divider[0],
+            "camera_z": self.divider[0],
             "y_top_divider": self.divider[1],
             "y_bottom_divider": self.divider[2],
             "y_top_divider_object": self.divider[3],
@@ -112,15 +119,19 @@ class ControlPanelWidget(QWidget):
             "x_divider_angle": self.divider[5],
             "z_divider": self.divider[6],
             "z_divider_curve": self.divider[7],
-            "draw_planes": self.divider[8],
+            "y_top_divider_angle": self.divider[3],
+            "y_bottom_divider_angle": self.divider[4],
+            "draw_planes": self.divider[10],
+            "y_top_divider_angle": self.divider[8],  # Save top angle
+            "y_bottom_divider_angle": self.divider[9],  # Save bottom angle
             "min_contour_area": self.movement[0],
             "person_movement_thres": self.movement[1],
             "headpoint_smoothing": self.movement[2],
-            "tracking_hold_duration" : self.movement[3],
-            "extended_timeout" : self.movement[4],
+            "tracking_hold_duration": self.movement[3],
+            "extended_timeout": self.movement[4],
             "always_closest": self.movement[5],
-            "point_size": self.point_size[0],  # Save the point size setting
-            "num_divisions": self.num_divisions[0],  # Save the num_divisions setting
+            "point_size": self.point_size[0],
+            "num_divisions": self.num_divisions[0],
             "x_threshold_min": self.thresholds[0],
             "x_threshold_max": self.thresholds[1],
             "y_threshold_min": self.thresholds[2],
@@ -130,15 +141,13 @@ class ControlPanelWidget(QWidget):
             "stable_thres_x": self.smoothing[0],
             "stable_thres_y": self.smoothing[1],
             "stable_thres_z": self.smoothing[2],
-            "detect_people" : self.detection_type[0],
-            "detect_objects" : self.detection_type[1],
-            "nervousness" : self.image_selection[0]
-
+            "detect_people": self.detection_type[0],
+            "detect_objects": self.detection_type[1]
         }
-
         with open('config.json', 'w') as config_file:
             json.dump(config, config_file, indent=4)
-        print("Config saved to config.json")
+        print("Configuration saved.")
+
 
     def init_ui(self):
         # Main layout for ControlPanelWidget
@@ -151,6 +160,35 @@ class ControlPanelWidget(QWidget):
         # Create a widget to contain the layout within the scroll area
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
+
+        # Version selection (radio buttons)
+        version_label = QLabel("Select Version")
+        version_label.setStyleSheet("font-weight: bold;")
+        content_layout.addWidget(version_label)
+
+    # Create a horizontal layout for the radio buttons
+        version_layout = QHBoxLayout()
+
+    # Create radio buttons for "Jade" and "Gab"
+        jade_radio = QRadioButton("Jade")
+        gab_radio = QRadioButton("Gab")
+        
+        # Add the radio buttons to the horizontal layout
+        version_layout.addWidget(jade_radio)
+        version_layout.addWidget(gab_radio)
+
+        # Add the radio buttons to a button group
+        version_button_group = QButtonGroup(self)
+        version_button_group.addButton(jade_radio)
+        version_button_group.addButton(gab_radio)
+
+        # Set "Jade" as the default selected option
+        jade_radio.setChecked(True)
+        jade_radio.toggled.connect(lambda checked: switch_folder_on_server("jade") if checked else None)
+        gab_radio.toggled.connect(lambda checked: switch_folder_on_server("gab") if checked else None)
+
+        # Add the horizontal layout to the main content layout
+        content_layout.addLayout(version_layout)
         # Rotation sliders
         label = QLabel("Rotation")
         label.setStyleSheet("font-weight: bold;")
@@ -190,7 +228,8 @@ class ControlPanelWidget(QWidget):
         self.create_slider_group(content_layout, "X Divider Angle", 5, 0, 360, self.divider, 5, 1)
         self.create_slider_group(content_layout, "Z Divider", 6, -15, 15, self.divider, 6, 0.1)
         self.create_slider_group(content_layout, "Z Divider Curve", 7, 0, 10, self.divider, 7, 1)
-
+        self.create_slider_group(content_layout, "Top Y Divider Angle", 8, -90, 90, self.divider, 8, 1)  # New
+        self.create_slider_group(content_layout, "Bottom Y Divider Angle", 9, -90, 90, self.divider, 9, 1) 
         # Draw Planes checkbox
         draw_planes_checkbox = QCheckBox("Draw Planes")
         draw_planes_checkbox.setChecked(True)
@@ -243,11 +282,6 @@ class ControlPanelWidget(QWidget):
         detect_objects_checkbox.setChecked(self.detection_type[1])
         detect_objects_checkbox.stateChanged.connect(lambda state: setattr(self.live_config, 'detect_objects', bool(state)))
         content_layout.addWidget(detect_objects_checkbox)
-
-        label = QLabel("Image Selection")
-        label.setStyleSheet("font-weight: bold;")
-        content_layout.addWidget(label)
-        self.create_slider_group(content_layout, "Nervousness", 0, 0, 1, self.image_selection, 0, .1)
 
         # Cube-related buttons
         edit_cubes_button = QPushButton("Edit Cubes")
@@ -351,6 +385,7 @@ class ControlPanelWidget(QWidget):
         input_field.setText(display_value)
 
     def sync_with_live_config(self):
+        self.live_config.version = self.version[0]
         self.live_config.rotate_x = self.rotation[0]
         self.live_config.rotate_y = self.rotation[1]
         self.live_config.rotate_z = self.rotation[2]
@@ -365,7 +400,10 @@ class ControlPanelWidget(QWidget):
         self.live_config.x_divider_angle = self.divider[5]
         self.live_config.z_divider = self.divider[6]
         self.live_config.z_divider_curve = self.divider[7]
-        self.live_config.draw_planes = self.divider[8]
+        self.live_config.y_top_divider_angle = self.divider[8]
+        self.live_config.y_bottom_divider_angle = self.divider[9]
+        self.live_config.draw_planes = self.divider[10]
+
         self.live_config.min_contour_area = self.movement[0]
         self.live_config.person_movement_thres = self.movement[1]
         self.live_config.headpoint_smoothing = self.movement[2]
@@ -385,7 +423,6 @@ class ControlPanelWidget(QWidget):
         self.live_config.stable_z_thres = self.smoothing[2]
         self.live_config.detect_people = self.detection_type[0]
         self.live_config.detect_objects = self.detection_type[1]
-        self.live_config.nervousness = self.image_selection[0]
 
     def update_value(self, index, target_list, value, step):
         """Update live config dynamically when a slider changes."""
@@ -399,7 +436,7 @@ class ControlPanelWidget(QWidget):
         elif target_list == self.translation:
             setattr(self.live_config, ["translate_x", "translate_y", "translate_z"][index], target_list[index])
         elif target_list == self.divider:
-            setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider", "y_top_divider_object", "y_bottom_divider_object", "x_divider_angle", "z_divider", "z_divider_curve"][index], target_list[index])
+            setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider", "y_top_divider_object", "y_bottom_divider_object", "x_divider_angle", "z_divider", "z_divider_curve", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
         elif target_list == self.movement:
             setattr(self.live_config, ["min_contour_area", "person_movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout","always_closest"][index], target_list[index])
         elif target_list == self.smoothing:
@@ -412,5 +449,4 @@ class ControlPanelWidget(QWidget):
             self.live_config.point_size = target_list[index]
         elif target_list == self.num_divisions:
             self.live_config.num_divisions = target_list[index]
-        elif target_list == self.image_selection:
-            self.live_config.nervousness = target_list[index]
+
