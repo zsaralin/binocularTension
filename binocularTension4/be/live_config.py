@@ -22,14 +22,10 @@ class LiveConfig:
         self.y_top_divider_angle = 0
         self.y_bottom_divider = 0
         self.y_bottom_divider_angle = 0
-        self.y_top_divider_object = 0
-        self.y_bottom_divider_object = 0
         self.x_divider_angle = 0
-        self.z_divider = 0
-        self.z_divider_curve = 0
         self.draw_planes = True
-        self.min_contour_area = 500  # Default for minimum contour area
-        self.person_movement_thres = 0.01  # Default threshold for person movement
+        self.min_contour_area = 200  # Default for minimum contour area
+        self.movement_thres = 5  # Default threshold for person movement
         self.headpoint_smoothing = 0.5
         self.tracking_hold_duration = 5
         self.extended_timeout = 2

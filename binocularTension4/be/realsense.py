@@ -3,16 +3,21 @@ from PyQt5.QtCore import QTimer
 import numpy as np
 import cv2
 from detection_data import DetectionData
+
 class RealSenseManager:
     def __init__(self):
         self.pipeline = rs.pipeline()
         config = rs.config()
 
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
-        config.enable_stream(rs.stream.infrared, 1, 640, 480, rs.format.y8, 60)
+
+        config.enable_stream(rs.stream.color, 848, 480, rs.format.bgr8, 60)
+        config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 60)
+        config.enable_stream(rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)
 
         self.pipeline_profile = self.pipeline.start(config)
+
+        # Initialize align object to align depth to color
+        self.align = rs.align(rs.stream.color)
 
         self.color_frame = None
         self.depth_frame = None
@@ -28,10 +33,15 @@ class RealSenseManager:
     def update_frames(self):
         try:
             frames = self.pipeline.wait_for_frames()
-            self.color_frame = frames.get_color_frame()
-            self.depth_frame = frames.get_depth_frame()
-            self.infrared_frame = frames.get_infrared_frame()
 
+            # Align depth to color
+            aligned_frames = self.align.process(frames)
+
+            self.color_frame = aligned_frames.get_color_frame()
+            self.depth_frame = aligned_frames.get_depth_frame()
+            self.infrared_frame = frames.get_infrared_frame()
+            if not self.color_frame or not self.depth_frame:
+                return  # Skip frame if either is missing
             # Check brightness of color frame
             if self.color_frame:
                 # Convert color frame to numpy array to calculate brightness
@@ -44,7 +54,6 @@ class RealSenseManager:
                     self.color_frame = self.infrared_frame
                 else:
                     self.detection_data.set_is_dark(False)
-
 
         except RuntimeError:
             print("Frame didn't arrive within 5000 ms")

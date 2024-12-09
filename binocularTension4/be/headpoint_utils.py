@@ -35,11 +35,12 @@ def smooth_point(new_point, previous_point):
 
 def compute_general_head_points(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation, confidence_threshold=0.5):
     global previous_head_points
-    head_keypoints_indices = [0, 1, 2, 3, 4]
+    head_keypoints_indices = [0]
     smoothed_head_points = {}
     live_config = LiveConfig.get_instance()
     detection_data = DetectionData()  # Retrieve DetectionData instance
     active_movement_id = detection_data.active_movement_id  # Get active movement ID
+    bounding_boxes = detection_data.bounding_boxes
     previous_head_point = previous_head_points.get(active_movement_id)  # Previous head point for active ID
 
     x_min, x_max = live_config.x_threshold_min, live_config.x_threshold_max
@@ -105,41 +106,52 @@ def compute_movement_points(drawn_objects, intrinsics, depth_image, depth_scale,
         obj_id = tracked_object['id']
         x2_t, y2_t = x1_t + w_t, y1_t + h_t
 
+        # Get all depth values in the bounding box
+        x1_t, x2_t = max(0, x1_t), min(intrinsics.width, x2_t)
+        y1_t, y2_t = max(0, y1_t), min(intrinsics.height, y2_t)
+
+        depth_values = depth_image[y1_t:y2_t, x1_t:x2_t].flatten() * depth_scale
+        depth_values = depth_values[depth_values > 0]  # Filter out invalid depths (0)
+
+        if len(depth_values) == 0:
+            continue
+
+        # Use the minimum depth value
+        min_depth_value = np.min(depth_values)
+
+        # Deproject the 3D point using the bounding box's center and minimum depth
         x_center, y_center = int((x1_t + x2_t) / 2), int((y1_t + y2_t) / 2)
+        x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x_center, y_center], min_depth_value)
+        point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
+        point_3d[1] *= -1
+        point_3d[2] *= -1
+        point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
 
-        if 0 <= x_center < intrinsics.width and 0 <= y_center < intrinsics.height:
-            depth_value = depth_image[y_center, -x_center] * depth_scale
-            if depth_value == 0:
-                continue
+        cube_manager = CubeManager.get_instance()
 
-            x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x_center, y_center], depth_value)
-            point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
-            # point_3d[0] *= -1
-            point_3d[1] *= -1
-            point_3d[2] *= -1
-            point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
-            cube_manager = CubeManager.get_instance()
+        # Exclude point if it's within any cube
+        if cube_manager.is_point_in_cubes(point_3d_transformed):
+            objects_outside_thresholds.append(obj_id)
+            continue
 
-            # Exclude point if it's within any cube
-            if cube_manager.is_point_in_cubes(point_3d_transformed):
-                objects_outside_thresholds.append(obj_id)
-                continue
+        # Check if point is within thresholds
+        within_thresholds = (
+            x_min <= point_3d_transformed[0] <= x_max and
+            y_min <= point_3d_transformed[1] <= y_max and
+            z_min <= point_3d_transformed[2] <= z_max
+        )
 
-            # Check if point is within thresholds
-            within_thresholds = (
-                x_min <= point_3d_transformed[0] <= x_max and
-                y_min <= point_3d_transformed[1] <= y_max and
-                z_min <= point_3d_transformed[2] <= z_max
+        if within_thresholds:
+            # Smooth and store the point if it's within thresholds
+            smoothed_point = smooth_point(
+                point_3d_transformed,
+                previous_movement_points.get(obj_id, point_3d_transformed)
             )
-
-            if within_thresholds:
-                # Smooth and store the point if it's within thresholds
-                smoothed_point = smooth_point(point_3d_transformed, previous_movement_points.get(obj_id, point_3d_transformed))
-                movement_points_transformed[obj_id] = smoothed_point
-                previous_movement_points[obj_id] = smoothed_point
-            else:
-                # Otherwise, mark it as outside thresholds
-                objects_outside_thresholds.append(obj_id)
+            movement_points_transformed[obj_id] = smoothed_point
+            previous_movement_points[obj_id] = smoothed_point
+        else:
+            # Otherwise, mark it as outside thresholds
+            objects_outside_thresholds.append(obj_id)
 
     # Remove any objects that were previously tracked but are not in the current frame
     for obj_id in list(previous_movement_points.keys()):
@@ -150,3 +162,75 @@ def compute_movement_points(drawn_objects, intrinsics, depth_image, depth_scale,
     DetectionData().set_objects_outside_thresholds(objects_outside_thresholds)
 
     return movement_points_transformed
+def compute_object_points(tracked_objects, intrinsics, depth_image, depth_scale, rotation, translation, alpha=0.8):
+    global previous_movement_points
+    
+    movement_points_transformed = {}
+    live_config = LiveConfig.get_instance()
+    x_min, x_max = live_config.x_threshold_min, live_config.x_threshold_max
+    y_min, y_max = live_config.y_threshold_min, live_config.y_threshold_max
+    z_min, z_max = live_config.z_threshold_min, live_config.z_threshold_max
+
+    objects_outside_thresholds = []  # List to track objects outside thresholds
+
+    for tracked_object in tracked_objects:
+        obj_id = tracked_object['id']
+        peak = tracked_object['peak']  # Use the peak point
+        # Skip if peak is missing
+        if peak is None:
+            continue
+
+        x_peak, y_peak = peak
+
+        # Clip the peak to valid image dimensions
+        # x_peak = np.clip(x_peak, 0, intrinsics.width - 1)
+        # y_peak = np.clip(y_peak, 0, intrinsics.height - 1)
+        depth_image = np.fliplr(depth_image)
+
+        if 0 <= x_peak < depth_image.shape[1] and 0 <= y_peak < depth_image.shape[0]:
+            # Retrieve the depth value at the peak point
+            depth_value = depth_image[int(y_peak), int(x_peak)]  * depth_scale
+            # Skip invalid depth values
+            if depth_value <= 0:
+                continue
+
+            # Deproject the 3D point using the peak point and depth value
+            x3d, y3d, z3d = rs.rs2_deproject_pixel_to_point(intrinsics, [x_peak, y_peak], depth_value)
+            point_3d = np.array([x3d, y3d, z3d], dtype=np.float32)
+            point_3d *= -1  # Invert coordinates for consistency
+            point_3d[0]*= -1
+            point_3d_transformed = apply_dynamic_transformation([point_3d], rotation, translation)
+
+            cube_manager = CubeManager.get_instance()
+
+            # Skip point if within any cube
+            if cube_manager.is_point_in_cubes(point_3d_transformed):
+                objects_outside_thresholds.append(obj_id)
+                continue
+
+            # Check thresholds
+            within_thresholds = (
+                x_min <= point_3d_transformed[0] <= x_max and
+                y_min <= point_3d_transformed[1] <= y_max and
+                z_min <= point_3d_transformed[2] <= z_max
+            )
+
+            if within_thresholds:
+                # Smooth and store point if within thresholds
+                smoothed_point = smooth_point(
+                    point_3d_transformed,
+                    previous_movement_points.get(obj_id, point_3d_transformed)
+                )
+                movement_points_transformed[obj_id] = smoothed_point
+                previous_movement_points[obj_id] = smoothed_point
+            else:
+                objects_outside_thresholds.append(obj_id)
+
+    # Remove objects no longer tracked
+    for obj_id in list(previous_movement_points.keys()):
+        if obj_id not in movement_points_transformed:
+            del previous_movement_points[obj_id]
+
+    # Update objects outside thresholds
+    DetectionData().set_objects_outside_thresholds(objects_outside_thresholds)
+    return movement_points_transformed if movement_points_transformed else {}

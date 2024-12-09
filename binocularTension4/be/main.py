@@ -18,8 +18,8 @@ class MainWindow(QMainWindow):
 
         # Define aspect ratios for each widget
         self.control_panel_ratio = 1 / 1   # Control panel square aspect ratio
-        self.rgb_ratio = 640 / 480         # RGB widget aspect ratio
-        self.pointcloud_ratio = 640 / 480  # Point cloud widget aspect ratio
+        self.rgb_ratio = 848 / 480         # RGB widget aspect ratio
+        self.pointcloud_ratio = 848 / 480  # Point cloud widget aspect ratio
 
         # Create an instance of the RealSenseManager to share between widgets
         self.rs_manager = RealSenseManager()

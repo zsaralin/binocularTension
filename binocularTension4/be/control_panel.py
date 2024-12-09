@@ -29,13 +29,12 @@ class ControlPanelWidget(QWidget):
         self.divider = [
             self.config['camera_z'], 
             self.config['y_top_divider'], self.config['y_bottom_divider'], 
-            self.config['y_top_divider_object'], self.config['y_bottom_divider_object'], 
-            self.config['x_divider_angle'], self.config['z_divider'], 
-            self.config['z_divider_curve'],
-            self.config['y_top_divider_angle'], self.config['y_bottom_divider_angle'], self.config['draw_planes']  # New angles
+            self.config['x_divider_angle'], 
+            self.config['y_top_divider_angle'], self.config['y_bottom_divider_angle'], 
+            self.config['draw_planes']  # New angles
         ]
         self.movement = [
-            self.config['min_contour_area'], self.config['person_movement_thres'], self.config['headpoint_smoothing'], 
+            self.config['min_contour_area'], self.config['movement_thres'], self.config['headpoint_smoothing'], 
             self.config['tracking_hold_duration'], self.config['extended_timeout'], self.config['always_closest']
         ]
         self.smoothing = [
@@ -73,16 +72,12 @@ class ControlPanelWidget(QWidget):
                 "camera_z": 0,
                 "y_top_divider": 0,
                 "y_bottom_divider": 0,
-                "y_top_divider_object": 0,
-                "y_bottom_divider_object": 0,
                 "x_divider_angle": 0,
-                "z_divider": 0,
-                "z_divider_curve": 0,
                 "draw_planes": True,
                 "y_top_divider_angle": 0,  # Default angle
                 "y_bottom_divider_angle": 0,  # Default angle
                 "min_contour_area": 500,
-                "person_movement_thres": 0.01,
+                "movement_thres": 10,
                 "headpoint_smoothing": 0.5,
                 "tracking_hold_duration": 5,
                 "extended_timeout": 2,
@@ -114,18 +109,12 @@ class ControlPanelWidget(QWidget):
             "camera_z": self.divider[0],
             "y_top_divider": self.divider[1],
             "y_bottom_divider": self.divider[2],
-            "y_top_divider_object": self.divider[3],
-            "y_bottom_divider_object": self.divider[4],
-            "x_divider_angle": self.divider[5],
-            "z_divider": self.divider[6],
-            "z_divider_curve": self.divider[7],
-            "y_top_divider_angle": self.divider[3],
-            "y_bottom_divider_angle": self.divider[4],
-            "draw_planes": self.divider[10],
-            "y_top_divider_angle": self.divider[8],  # Save top angle
-            "y_bottom_divider_angle": self.divider[9],  # Save bottom angle
+            "x_divider_angle": self.divider[3],
+            "draw_planes": self.divider[6],
+            "y_top_divider_angle": self.divider[4],  # Save top angle
+            "y_bottom_divider_angle": self.divider[5],  # Save bottom angle
             "min_contour_area": self.movement[0],
-            "person_movement_thres": self.movement[1],
+            "movement_thres": self.movement[1],
             "headpoint_smoothing": self.movement[2],
             "tracking_hold_duration": self.movement[3],
             "extended_timeout": self.movement[4],
@@ -223,13 +212,9 @@ class ControlPanelWidget(QWidget):
         self.create_slider_group(content_layout, "Camera Z", 0, -15, 15, self.divider, 0, 0.1)
         self.create_slider_group(content_layout, "Top Y Divider", 1, -5, 15, self.divider, 1, 0.01)
         self.create_slider_group(content_layout, "Bottom Y Divider", 2, -5, 15, self.divider, 2, 0.01)
-        self.create_slider_group(content_layout, "Top Y Divider Object", 3, -5, 15, self.divider, 3, 0.01)
-        self.create_slider_group(content_layout, "Bottom Y Divider Object", 4, -5, 15, self.divider, 4, 0.01)
-        self.create_slider_group(content_layout, "X Divider Angle", 5, 0, 360, self.divider, 5, 1)
-        self.create_slider_group(content_layout, "Z Divider", 6, -15, 15, self.divider, 6, 0.1)
-        self.create_slider_group(content_layout, "Z Divider Curve", 7, 0, 10, self.divider, 7, 1)
-        self.create_slider_group(content_layout, "Top Y Divider Angle", 8, -90, 90, self.divider, 8, 1)  # New
-        self.create_slider_group(content_layout, "Bottom Y Divider Angle", 9, -90, 90, self.divider, 9, 1) 
+        self.create_slider_group(content_layout, "X Divider Angle", 3, 0, 360, self.divider, 3, 1)
+        self.create_slider_group(content_layout, "Top Y Divider Angle", 4, -90, 90, self.divider, 4, .1)  # New
+        self.create_slider_group(content_layout, "Bottom Y Divider Angle", 5, -90, 90, self.divider, 5, .1) 
         # Draw Planes checkbox
         draw_planes_checkbox = QCheckBox("Draw Planes")
         draw_planes_checkbox.setChecked(True)
@@ -241,7 +226,7 @@ class ControlPanelWidget(QWidget):
         label.setStyleSheet("font-weight: bold;")
         content_layout.addWidget(label)
         self.create_slider_group(content_layout, "Min Contour Area", 0, 100, 1000, self.movement, 0, 1)
-        self.create_slider_group(content_layout, "Person Movement Threshold", 1, 0.01, 10, self.movement, 1, 0.01)
+        self.create_slider_group(content_layout, "Movement Threshold", 1, 1, 20, self.movement, 1, 1)
         self.create_slider_group(content_layout, "Headpoint Smoothing", 2, 0, 1, self.movement, 2, 0.1)
         self.create_slider_group(content_layout, "Tracking Hold Duration (s)", 3, 0, 15, self.movement, 3, 1)
         self.create_slider_group(content_layout, "Extended Timeout (s)", 4, 0, 15, self.movement, 4, 1)
@@ -395,17 +380,13 @@ class ControlPanelWidget(QWidget):
         self.live_config.camera_z = self.divider[0]
         self.live_config.y_top_divider = self.divider[1]
         self.live_config.y_bottom_divider = self.divider[2]
-        self.live_config.y_top_divider_object = self.divider[3]
-        self.live_config.y_bottom_divider_object = self.divider[4]
-        self.live_config.x_divider_angle = self.divider[5]
-        self.live_config.z_divider = self.divider[6]
-        self.live_config.z_divider_curve = self.divider[7]
-        self.live_config.y_top_divider_angle = self.divider[8]
-        self.live_config.y_bottom_divider_angle = self.divider[9]
-        self.live_config.draw_planes = self.divider[10]
+        self.live_config.x_divider_angle = self.divider[3]
+        self.live_config.y_top_divider_angle = self.divider[4]
+        self.live_config.y_bottom_divider_angle = self.divider[5]
+        self.live_config.draw_planes = self.divider[6]
 
         self.live_config.min_contour_area = self.movement[0]
-        self.live_config.person_movement_thres = self.movement[1]
+        self.live_config.movement_thres = self.movement[1]
         self.live_config.headpoint_smoothing = self.movement[2]
         self.live_config.tracking_hold_duration = self.movement[3]
         self.live_config.extended_timeout = self.movement[4]
@@ -436,9 +417,9 @@ class ControlPanelWidget(QWidget):
         elif target_list == self.translation:
             setattr(self.live_config, ["translate_x", "translate_y", "translate_z"][index], target_list[index])
         elif target_list == self.divider:
-            setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider", "y_top_divider_object", "y_bottom_divider_object", "x_divider_angle", "z_divider", "z_divider_curve", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
+            setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider","x_divider_angle", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
         elif target_list == self.movement:
-            setattr(self.live_config, ["min_contour_area", "person_movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout","always_closest"][index], target_list[index])
+            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout","always_closest"][index], target_list[index])
         elif target_list == self.smoothing:
             setattr(self.live_config, ["stable_x_thres","stable_y_thres","stable_z_thres"][index], target_list[index])
         elif target_list == self.thresholds:

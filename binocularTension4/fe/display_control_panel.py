@@ -149,15 +149,15 @@ class DisplayControlPanelWidget(QWidget):
         self.create_slider_group(main_layout, "Max Random Wakeup (s)", self.max_random_wakeup, 1, 300, 1)
 
         # Add jitter-related sliders
-        self.create_slider_group(main_layout, "Jitter Start Delay (s)", self.jitter_start_delay, 1, 1000, 1)
+        self.create_slider_group(main_layout, "Jitter Start Delay (s)", self.jitter_start_delay, 0, 1000, .1)
         self.create_slider_group(main_layout, "Large Jitter Start Delay (s)", self.large_jitter_start_delay, 1, 1000, 1)
         self.create_slider_group(main_layout, "Min Jitter Speed (ms)", self.min_jitter_speed, 100, 1000, 1)
-        self.create_slider_group(main_layout, "Max Jitter Speed (ms)", self.max_jitter_speed, 1001, 1000, 1)
+        self.create_slider_group(main_layout, "Max Jitter Speed (ms)", self.max_jitter_speed, 100, 2000, 1)
         self.create_slider_group(main_layout, "Min Jitter Interval (s)", self.min_jitter_interval, 1, 300, 1)
         self.create_slider_group(main_layout, "Max Jitter Interval (s)", self.max_jitter_interval, 1, 300, 1)
 
         # Add blink speed slider
-        self.create_slider_group(main_layout, "Blink Speed", self.blink_speed, 1, 10, 1)
+        self.create_slider_group(main_layout, "Blink Speed", self.blink_speed, 1, 20, 1)
 
         # Add stretch sliders
         self.create_slider_group(main_layout, "Stretch X", self.stretch_x, 1, 1.5, 0.01)

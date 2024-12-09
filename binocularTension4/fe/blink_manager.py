@@ -1,5 +1,6 @@
 import os
 import random
+import time
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
 
@@ -12,37 +13,40 @@ class BlinkManager(QObject):
         self.main_app = main_app
         self.is_blinking = False
         self.blink_sleep_manager = blink_sleep_manager
+        self.last_image_time = time.time()  # Initialize the last image received time
         # Load live config for blink intervals
         self.live_config = self.main_app.live_config
         self.min_blink_interval = self.live_config.min_blink_interval
         self.max_blink_interval = self.live_config.max_blink_interval
-        # Initialize the blink timer
-        self.continuous_blink_timer = QTimer(self)
-        self.continuous_blink_timer.timeout.connect(self.simulate_blink)
 
-        self.schedule_next_blink()
+        # Initialize timers
+        self.inactivity_timer = QTimer(self)
+        self.inactivity_timer.setSingleShot(True)
+        self.inactivity_timer.timeout.connect(self.handle_inactivity)
 
+        self.blink_timer = QTimer(self)
+        self.blink_timer.setSingleShot(True)
+        self.blink_timer.timeout.connect(self.simulate_blink)
 
-    def schedule_next_blink(self):
-        """Schedule the next blink if not in sleep mode."""
-        if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
-            print("Not scheduling blink: in sleep mode.")
-            self.continuous_blink_timer.stop()  # Stop timer if in sleep mode
-            return
+        self.check_inactivity()
 
-        next_blink_interval = random.randint(self.min_blink_interval, self.max_blink_interval) * 1000
-        self.continuous_blink_timer.start(next_blink_interval)
-        print(f"Next blink scheduled in {next_blink_interval // 1000} seconds")
+    def check_inactivity(self):
+        """Start checking for inactivity."""
+        self.inactivity_timer.start(1000)  # Check for 1 second of inactivity
 
-    def simulate_blink(self):
-        """
-        Simulate the blink by toggling images with variable speed based on blink speed.
-        """
+    def handle_inactivity(self):
+        """Handle 1 second of inactivity by blinking immediately."""
+        if time.time() - self.last_image_time >= 1 and not self.is_blinking:  # Confirm 1 second of inactivity
+            self.simulate_blink()  # Blink immediately
+        else:
+            self.check_inactivity()
+
+    def simulate_blink(self, new_filename=None):
         if self.blink_sleep_manager.sleep_manager.in_sleep_mode or self.main_app.debug_mode_manager.debug_mode or self.is_blinking:
             print("Blinking skipped: in sleep mode, debug mode, or already blinking")
             return
 
-        # Get the blink speed from a slider (assume the range is 1-10, where 10 is fastest)
+        # Get the blink speed from LiveConfig (assumed to be in the range 1-10)
         blink_speed = self.main_app.live_config.blink_speed  # Higher is faster
         base_delay = 600  # Base delay in ms for the slowest speed
 
@@ -53,9 +57,13 @@ class BlinkManager(QObject):
         self.blink_started.emit()
         current_filename = self.main_app.current_filename
 
-        half_closed_eye_filename = current_filename[:-5] + "h.jpg"
-        closed_eye_filename = current_filename[:-5] + "c.jpg"
+        # Extract the base filename (without the eye state suffix)
+        base_filename = current_filename[:-5]  # Remove the last 5 characters (e.g., 'o.jpg')
 
+        half_closed_eye_filename = base_filename + "h.jpg"
+        closed_eye_filename = base_filename + "c.jpg"
+
+        # Handle missing closed eye images
         if not os.path.exists(closed_eye_filename):
             closed_eye_filename = closed_eye_filename[:-6] + "sc.jpg"  # Try "sc.jpg" first
             if not os.path.exists(closed_eye_filename):
@@ -67,23 +75,65 @@ class BlinkManager(QObject):
             else:
                 print(f"Skipping image display ({filename}) due to sleep mode.")
 
-        # Adjust timing dynamically based on calculated step delay
-        QTimer.singleShot(step_delay, lambda: display_image_if_not_in_sleep(half_closed_eye_filename))
-        QTimer.singleShot(step_delay * 2, lambda: display_image_if_not_in_sleep(closed_eye_filename))
-        QTimer.singleShot(step_delay * 3, lambda: display_image_if_not_in_sleep(half_closed_eye_filename))
-        QTimer.singleShot(step_delay * 4, lambda: self.end_blinking(current_filename))
+        if new_filename and new_filename != current_filename:
+            # Blink with position change
+            new_base_filename = new_filename[:-5]  # Remove the last 5 characters from new_filename
+            new_open_eye_filename = new_filename
+            new_half_closed_eye_filename = new_base_filename + "h.jpg"
+            new_closed_eye_filename = new_base_filename + "c.jpg"
+
+            # Handle missing closed eye images for new position
+            if not os.path.exists(new_closed_eye_filename):
+                new_closed_eye_filename = new_closed_eye_filename[:-6] + "sc.jpg"  # Try "sc.jpg" first
+                if not os.path.exists(new_closed_eye_filename):
+                    new_closed_eye_filename = new_closed_eye_filename[:-7] + "csc.jpg"  # Fallback to "csc.jpg"
+
+            # Sequence:
+            # 1. Half-closed eye at current position
+            # 2. Closed eye at current position
+            # 3. Closed eye at new position
+            # 4. Half-closed eye at new position
+            # 5. Open eye at new position
+            QTimer.singleShot(step_delay, lambda: display_image_if_not_in_sleep(half_closed_eye_filename))
+            QTimer.singleShot(step_delay * 2, lambda: display_image_if_not_in_sleep(closed_eye_filename))
+            QTimer.singleShot(step_delay * 3, lambda: display_image_if_not_in_sleep(new_closed_eye_filename))
+            QTimer.singleShot(step_delay * 4, lambda: display_image_if_not_in_sleep(new_half_closed_eye_filename))
+            QTimer.singleShot(step_delay * 5, lambda: self.end_blinking(new_open_eye_filename))
+        else:
+            # Regular blink in the same position
+            # Sequence:
+            # 1. Half-closed eye at current position
+            # 2. Closed eye at current position
+            # 3. Half-closed eye at current position
+            # 4. Open eye at current position
+            QTimer.singleShot(step_delay, lambda: display_image_if_not_in_sleep(half_closed_eye_filename))
+            QTimer.singleShot(step_delay * 2, lambda: display_image_if_not_in_sleep(closed_eye_filename))
+            QTimer.singleShot(step_delay * 3, lambda: display_image_if_not_in_sleep(half_closed_eye_filename))
+            QTimer.singleShot(step_delay * 4, lambda: self.end_blinking(current_filename))
+
     def end_blinking(self, original_filename):
-        """End the blinking effect and reset the eye to the original state."""
+        """End the blinking effect and set the next interval."""
         if not self.blink_sleep_manager.sleep_manager.in_sleep_mode:
             self.main_app.display_image(original_filename)
-            print(f"Blinking ended, returned to original image: {original_filename}")
             self.is_blinking = False
             self.blink_ended.emit()
-            self.schedule_next_blink()
 
-    def on_blink_interval_changed(self, value):
+            # Schedule the next random blink interval
+            random_interval = random.randint(self.min_blink_interval, self.max_blink_interval) * 1000
+            self.blink_timer.start(random_interval)
+
+    def update_last_image_time(self):
+        """Update the last image time and reset blink logic."""
+        self.last_image_time = time.time()
+        # if self.is_blinking:
+        #     print("Blink interrupted by image update.")
+        #     self.is_blinking = False
+        self.inactivity_timer.stop()
+        self.blink_timer.stop()
+        self.check_inactivity()
+
+    def on_blink_interval_changed(self):
         """Update the blink interval in live config and restart the blink timer."""
         self.min_blink_interval = self.live_config.min_blink_interval
         self.max_blink_interval = self.live_config.max_blink_interval
-        self.schedule_next_blink()
-
+        self.check_inactivity()

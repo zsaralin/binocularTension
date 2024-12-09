@@ -75,7 +75,7 @@ class SleepManager(QObject):
                 closed_eye_filename = closed_eye_filename[:-7] + "csc.jpg"
 
         self.app_instance.display_image(half_closed_eye_filename)
-        QTimer.singleShot(200, lambda: self.app_instance.display_image(closed_eye_filename))
+        QTimer.singleShot(100, lambda: self.app_instance.display_image(closed_eye_filename))
 
     def exit_sleep_mode(self):
         if self.in_sleep_mode:
@@ -85,7 +85,7 @@ class SleepManager(QObject):
             self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
-        timeout_ms = self.display_off_timeout_hours * 3600 * 1000
+        timeout_ms = self.display_off_timeout_hours# * 3600 * 1000
         self.display_off_timer.start(timeout_ms)
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 
@@ -105,6 +105,10 @@ class SleepManager(QObject):
 
     def update_last_image_time(self):
         self.last_image_time = time.time()
+        self.sleep_timer.stop()
+        self.random_wakeup_timer.stop()
+        self.display_off_timer.stop()
+        self.schedule_sleep_timer()
 
     def on_sleep_timeout_changed(self):
         self.min_sleep_timeout = self.live_config.min_sleep_timeout * 1000

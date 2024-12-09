@@ -4,18 +4,19 @@ import socket
 import threading
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from display_control_panel import DisplayControlPanelWidget  # Import the control panel
 from display_live_config import DisplayLiveConfig  # Import LiveConfig for config values
 from debug_mode import DebugModeManager  # Import DebugModeManager
 from blink_sleep_manager import BlinkSleepManager  # Import the new BlinkSleepManager class
 import time
 import random
-from PyQt5.QtCore import  QTimer
+import re  # Import re module for regular expressions
+
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
-    largest_screen = min(screens, key=lambda screen: screen.size().width() * screen.size().height())
+    largest_screen = max(screens, key=lambda screen: screen.size().width() * screen.size().height())
     return largest_screen
 
 class FullScreenBlinkApp(QWidget):
@@ -25,18 +26,19 @@ class FullScreenBlinkApp(QWidget):
         super().__init__()
         self.image_folders = {  # Store folders with labels
             "jade": image_folders[0],
-            "gab": image_folders[1],
+            # "gab": image_folders[1],
         }
         self.current_folder = "jade"  # Start with "jade" folder
         self.label = QLabel(self)
         self.filename_label = QLabel(self)
         self.filename_label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-        self.filename_label.setStyleSheet("font-size: 24px; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 5px;")
+        self.filename_label.setStyleSheet("font-size: 1gpx; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 5px;")
         self.filename_label.setWordWrap(True)
         self.debug_mode_manager = DebugModeManager(self)
         self.setCursor(Qt.BlankCursor)
 
         self.current_filename = "bt_20_cso.jpg"
+        self.update_in_progress = False  # Flag to prevent updates during transitions
 
         # Load live config values
         self.live_config = DisplayLiveConfig.get_instance()
@@ -54,7 +56,6 @@ class FullScreenBlinkApp(QWidget):
 
         # Initialize BlinkSleepManager
         self.blink_sleep_manager = BlinkSleepManager(self)
-        # self.blink_sleep_manager.last_image_time_updated.connect(self.display_image)
 
         # Display initial image and set up signal for server updates
         self.display_image(self.current_filename)
@@ -68,12 +69,22 @@ class FullScreenBlinkApp(QWidget):
             if os.path.exists(folder_path):
                 for filename in os.listdir(folder_path):
                     if filename.endswith(".jpg"):
+                        print(filename)
                         image_path = os.path.join(folder_path, filename)
                         pixmap = QPixmap(image_path)
                         self.image_filenames[folder_key].append(filename)
                         self.images[folder_key][filename] = pixmap
         if self.image_filenames["jade"]:  # Start with the first image in "jade"
             self.display_image(self.current_filename)
+
+    def extract_x_from_filename(self, filename):
+        """Extract the x value from the filename."""
+        match = re.match(r"bt_(\d+)_.*\.jpg", filename)
+        if match:
+            x_value = int(match.group(1))
+            return x_value
+        else:
+            return None
 
     def display_image(self, filename):
         image_path = os.path.join(self.image_folders[self.current_folder], filename)
@@ -108,56 +119,100 @@ class FullScreenBlinkApp(QWidget):
             self.label.setPixmap(stretched_pixmap)
             self.filename_label.setText(filename)
             self.filename_label.adjustSize()
-            # self.current_filename = filename
+            self.current_filename = filename  # Update current filename here
         else:
             print(f"Image not found: {image_path}")
 
     def update_display_image(self, filename):
-        # Check if the display is off
         if self.blink_sleep_manager.sleep_manager.display_off:
             self.blink_sleep_manager.sleep_manager.display_off = False
             self.blink_sleep_manager.sleep_manager.turn_on_display_()
-        if self.current_filename != filename : 
+        if self.update_in_progress:
+            print("Update in progress, ignoring new update.")
+            return
+
+        # Extract x values from filenames
+        current_x = self.extract_x_from_filename(self.current_filename)
+        new_x = self.extract_x_from_filename(filename)
+
+        if current_x is not None and new_x is not None:
+            delta = abs(new_x - current_x)
+            if delta > 5:
+                # 50% chance to simulate blink with position change, 50% to do intermediate steps
+                if random.random() < 0.8:
+                    # Simulate blink with position change
+                    print("Simulating blink with position change.")
+                    # Prevent updates during blink
+                    self.update_in_progress = True
+                    # Call simulate_blink with the new filename
+                    self.blink_sleep_manager.blink_manager.simulate_blink(new_filename=filename)
+                    # Finish update after blink duration
+                    blink_speed = self.live_config.blink_speed  # Higher is faster
+                    base_delay = 600  # Base delay in ms for the slowest speed
+                    total_blink_duration = int((base_delay / blink_speed) * 5)  # 5 steps in simulate_blink
+                    QTimer.singleShot(total_blink_duration, lambda: self.finish_update(filename))
+                else:
+                    # Perform intermediate steps as before
+                    print("Performing intermediate steps for large delta.")
+                    num_steps = random.randint(2, 4)
+                    step_size = (new_x - current_x) / num_steps
+                    intermediate_x_values = [int(round(current_x + step_size * i)) for i in range(1, num_steps)]
+                    # Ensure x values are within 0-40
+                    intermediate_x_values = [max(0, min(40, x)) for x in intermediate_x_values]
+                    # Build filenames for intermediate steps
+                    rest_of_filename_match = re.match(r"bt_\d+(_.*\.jpg)", filename)
+                    if rest_of_filename_match:
+                        rest_of_filename = rest_of_filename_match.group(1)
+                    else:
+                        rest_of_filename = "_cso.jpg"  # Default value if pattern doesn't match
+                    # Build a list of filenames
+                    intermediate_filenames = [f"bt_{x}{rest_of_filename}" for x in intermediate_x_values]
+                    # Set update_in_progress to True
+                    self.update_in_progress = True
+                    # Schedule the display of intermediate images
+                    total_delay = 0
+                    for i, intermediate_filename in enumerate(intermediate_filenames):
+                        delay_between_steps = random.randint(100, 300)  # Random delay between 100ms and 300ms
+                        total_delay += delay_between_steps
+                        QTimer.singleShot(total_delay, lambda fn=intermediate_filename: self.display_image(fn))
+                    # Finally, after the last intermediate image, display the final image
+                    total_delay += random.randint(100, 300)
+                    QTimer.singleShot(total_delay, lambda fn=filename: self.display_image(fn))
+                    QTimer.singleShot(total_delay, lambda fn=filename: self.finish_update(fn))
+                return
+
+        # If no large difference or unable to parse x values, proceed normally
+        if self.current_filename != filename:
             self.current_filename = filename
-            
-            # Update last image time
-            self.blink_sleep_manager.update_last_image_time()
-            
-            # Check if in sleep mode
             if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
                 print("Exiting sleep mode.")
                 self.blink_sleep_manager.sleep_manager.exit_sleep_mode()
-            
-            # Check if blinking or wakeup is in progress
-            # if not self.blink_sleep_manager.blink_manager.is_blinking and not self.blink_sleep_manager.sleep_manager.in_wakeup:
-            current_time = time.time()
-            inactivity_duration = current_time - self.blink_sleep_manager.last_image_time
-            
-            # Random wake effect logic
-            if inactivity_duration > 5 and random.random() < 0.2:  # 20% chance
-                # Generate the "w.jpg" filename
-                wake_filename = filename[:-5] + "w.jpg"
-                
-                # Display the "w.jpg" version for 300ms, then the regular "o.jpg" version
-                self.display_image(wake_filename)  # Show wake image immediately
-                
-                QTimer.singleShot(300, lambda: self.display_image(filename))  # Switch to regular image
-                return
-            else:
-                self.display_image(filename)  # Show regular image
-    
+            # Update last image time
+            if not self.blink_sleep_manager.blink_manager.is_blinking:
+                self.display_image(filename)
+            self.blink_sleep_manager.update_last_image_time()
+            # Check if in sleep mode
+
+
+
+    def finish_update(self, filename):
+        """Reset the update_in_progress flag after transition."""
+        self.update_in_progress = False
+        self.current_filename = filename
+        print("Finished large jump transition.")
+
     def switch_image_folder(self, folder_name):
-            """
-            Switch between the two image folders based on the parameter.
-            :param folder_name: "jade" for the first folder, "gab" for the second.
-            """
-            if folder_name not in self.image_folders:
-                print(f"Invalid folder name: {folder_name}. Must be 'jade' or 'gab'.")
-                return
-            self.current_folder = folder_name
-            print(f"Switched to folder: {folder_name}")
-            if self.image_filenames[folder_name]:  # Display the first image in the new folder
-                self.display_image(self.current_filename)
+        """
+        Switch between the two image folders based on the parameter.
+        :param folder_name: "jade" for the first folder, "gab" for the second.
+        """
+        if folder_name not in self.image_folders:
+            print(f"Invalid folder name: {folder_name}. Must be 'jade' or 'gab'.")
+            return
+        self.current_folder = folder_name
+        print(f"Switched to folder: {folder_name}")
+        if self.image_filenames[folder_name]:  # Display the first image in the new folder
+            self.display_image(self.current_filename)
 
     def start_server_thread(self, host, port):
         def listen_for_commands():
@@ -182,6 +237,7 @@ class FullScreenBlinkApp(QWidget):
                                 self.update_image_signal.emit(data)
         thread = threading.Thread(target=listen_for_commands, daemon=True)
         thread.start()
+
     def toggle_control_panel(self):
         """Toggle the control panel visibility."""
         if self.control_panel is None:
@@ -196,7 +252,6 @@ class FullScreenBlinkApp(QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_G:
             self.toggle_control_panel()
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     image_folders = ["./eyeballImages/Jade", "./eyeballImages/Gab"]

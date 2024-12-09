@@ -13,7 +13,9 @@ class DetectionData:
 
     def init_data(self):
         self.person_moving_status = {}
+        self.bounding_boxes = []
         self.non_person_movement_boxes = []
+        self.object_boxes = []
         self.persons_with_ids = []
         self.people_outside_thresholds = []  # Store people outside thresholds
         self.objects_outside_thresholds = []  # Store objects outside thresholds
@@ -39,7 +41,23 @@ class DetectionData:
     def get_person_moving_status(self):
         with self.lock:
             return self.person_moving_status
+        
+    def set_bounding_boxes(self, boxes):
+        with self.lock:
+            self.bounding_boxes = boxes
 
+    def get_bounding_boxes(self):
+        with self.lock:
+            return self.bounding_boxes
+    
+    def set_object_boxes(self, boxes):
+        with self.lock:
+            self.object_boxes = boxes
+
+    def get_object_boxes(self):
+        with self.lock:
+            return self.object_boxes
+        
     def set_non_person_movement_boxes(self, non_person_movement_boxes):
         with self.lock:
             self.non_person_movement_boxes = non_person_movement_boxes

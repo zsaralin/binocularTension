@@ -2,17 +2,20 @@ import random
 import re
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 from display_live_config import DisplayLiveConfig  # Assuming LiveConfig is accessible
-
+import time 
 jitter_patterns_0 = [
+    [-1, 0],
+    [1, 0],
+    [-1, 0],
+    [1, 0],
+    [-1, 0],
+    [1, 0],
     [-1, 0],
     [1, 0],
     [-1, 1, 0],
     [1, -1, 0],
     [-1, 1, -1, 0],
     [1, -1, 1, 0],
-    [1, 0, -1, 0, 1, 0],
-    [-1, -1, 0, 1, 1, 0],
-    [1, 1, 0, -1, -1, 0],
 ]
 jitter_patterns_1 = [
     [-1, 0],
@@ -45,55 +48,109 @@ class JitterManager(QObject):
     jitter_started = pyqtSignal()
     jitter_completed = pyqtSignal()
 
-    
     def __init__(self, main_app, blink_sleep_manager):
         super().__init__()
         self.main_app = main_app
-        self.is_jittering = False
-        self.jitter_timer = QTimer(self)
         self.blink_sleep_manager = blink_sleep_manager
         self.live_config = DisplayLiveConfig.get_instance()
+        self.last_image_time = time.time()
+
+        # Timers
+        self.jitter_start_timer = QTimer(self)
+        self.jitter_start_timer.setSingleShot(True)
+        self.jitter_start_timer.timeout.connect(self.start_jitter_loop)
+
+        self.jitter_loop_timer = QTimer(self)
+        self.jitter_loop_timer.timeout.connect(self.run_jitter)
+
+        self.current_jitter_level = 0
+        self.jitter_active = False  # Initialize the jitter_active flag
+
+    def start_jitter_process(self):
+        """Start the jitter process with a delay."""
+        delay = self.live_config.jitter_start_delay * 1000  # Convert to milliseconds
+        self.jitter_start_timer.start(delay)
+
+    def start_jitter_loop(self):
+        """Start the jitter loop after the initial delay."""
+        self.run_jitter()
+
+    def run_jitter(self):
+        """Run the jitter simulation and schedule the next iteration."""
+        self.update_jitter_level()
+        if random.random() < self.live_config.nervousness:
+            self.simulate_jitter(level=self.current_jitter_level)
+
+        jitter_interval = random.randint(
+            self.live_config.min_jitter_interval * 1000,
+            self.live_config.max_jitter_interval * 1000
+        )
+        self.jitter_loop_timer.start(jitter_interval)
+
+    def update_jitter_level(self):
+        """Update the jitter level based on inactivity duration."""
+        inactivity_duration = time.time() - self.last_image_time
+        if inactivity_duration > self.live_config.large_jitter_start_delay:
+            self.current_jitter_level = 1
+        else:
+            self.current_jitter_level = 0
+
+    def update_last_image_time(self):
+        """Reset jitter timing and level on activity."""
+        self.last_image_time = time.time()
+        self.jitter_start_timer.stop()
+        self.jitter_loop_timer.stop()
+        self.current_jitter_level = 0
+        self.jitter_active = False  # Stop any active jitter immediately
+        self.start_jitter_process()
 
     def simulate_jitter(self, level=0):
+        """Simulate a jitter effect."""
+        # Check nervousness level and decide whether to simulate jitter
+        if random.random() > self.live_config.nervousness:
+            return
+
+        # Set jitter_active to True
+        self.jitter_active = True
+
         patterns = jitter_patterns_0 if level == 0 else jitter_patterns_1
         jitter_pattern = random.choice(patterns)
-        """Simulate a jitter by replacing the X coordinate in the filename with jittered values."""
-        if self.main_app.debug_mode_manager.debug_mode or self.blink_sleep_manager.sleep_manager.in_sleep_mode:
-            print("Jitter effect skipped")
-            return
-        print('jitter happening ')
-        current_filename = self.main_app.current_filename
 
-        # Extract the X coordinate from the filename
+        if self.main_app.debug_mode_manager.debug_mode or self.blink_sleep_manager.sleep_manager.in_sleep_mode:
+            print("Jitter effect skipped due to debug or sleep mode.")
+            return
+
+        current_filename = self.main_app.current_filename
         match = re.match(r"(bt_)(\d+)(_.*\.jpg)", current_filename)
         if not match:
             print(f"Filename format error: {current_filename}")
-            self.stop_jitters()
             return
 
-        prefix = match.group(1)  # "bt_"
-        current_x = int(match.group(2))  # The existing X value
-        rest_of_filename = match.group(3)  # The rest of the filename after the X coordinate
-
-        # Scale jitter pattern based on intensity
-        jitter_pattern = random.choice(jitter_patterns_1)
+        prefix = match.group(1)
+        current_x = int(match.group(2))
+        rest_of_filename = match.group(3)
 
         # Generate filenames for each jitter step
         jitter_filenames = [
             f"{prefix}{max(0, min(40, current_x + jitter_step))}{rest_of_filename}"
             for jitter_step in jitter_pattern
         ]
-
-        # Schedule the display of jittered filenames with random intervals
+        print('Jitter happening')
+        # Schedule the display of jittered filenames
         delay = 0
         for jitter_filename in jitter_filenames:
-            random_interval = random.randint(self.live_config.min_jitter_speed, self.live_config.max_jitter_speed)  # Random delay between 100ms and 300ms
+            random_interval = random.randint(self.live_config.min_jitter_speed, self.live_config.max_jitter_speed)
             delay += random_interval
             QTimer.singleShot(
                 delay, lambda fn=jitter_filename: self.emit_jittered_filename(fn)
             )
 
     def emit_jittered_filename(self, filename):
-        """Emit the jittered filename if not in sleep mode."""
+        """Emit the jittered filename if not in sleep mode and jitter is active."""
+        # if not self.jitter_active:
+        #     print("Jitter effect canceled.")
+        #     return
         if not self.blink_sleep_manager.sleep_manager.in_sleep_mode and not self.blink_sleep_manager.blink_manager.is_blinking:
             self.main_app.display_image(filename)
+        else:
+            print(f"Skipping jittered display of {filename} due to sleep or blinking.")

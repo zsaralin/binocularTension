@@ -10,6 +10,7 @@ from live_config import LiveConfig
 from pointcloud_drawing_utils import fill_divider
 from detection_data import DetectionData
 import random 
+import math
 
 live_config = LiveConfig.get_instance()
 
@@ -61,18 +62,17 @@ def get_image(point, image_width, image_height):
     detection_data = DetectionData()
     global prev_movement_id, depth_history, y_position_history, x_position_history
     global stable_x_pos, stable_y_pos, stable_z_pos
-
     # Update deque lengths if thresholds have changed
     update_deque_maxlen()
 
     movement_id = detection_data.active_movement_id
 
     x_pos = find_x_divider_index(point)
-    y_pos = get_y_position(point,detection_data)
+    y_pos = get_y_position(point, detection_data)
     z_pos = get_z_position(point)
 
     if movement_id == prev_movement_id:
-        # Apply different hysteresis approach for x, y, and z positions
+        # Apply hysteresis for x, y, and z positions if the same person
         stable_x_pos = apply_x_hysteresis(x_position_history, x_pos, stable_x_pos)
         stable_y_pos = apply_hysteresis(y_position_history, y_pos, stable_y_pos, live_config.stable_y_thres)
         stable_z_pos = apply_hysteresis(depth_history, z_pos, stable_z_pos, live_config.stable_z_thres)
@@ -86,9 +86,10 @@ def get_image(point, image_width, image_height):
         stable_z_pos = z_pos
         prev_movement_id = movement_id
 
-    if stable_x_pos and stable_y_pos and stable_z_pos:
-        filename = f"bt_{stable_x_pos}_{stable_z_pos}{stable_y_pos}o.jpg"
-        send_filename_to_server(filename)
+    # if stable_x_pos and stable_y_pos and stable_z_pos:
+    filename = f"bt_{stable_x_pos}_{stable_z_pos}{stable_y_pos}o.jpg"
+    send_filename_to_server(filename)
+
 # Global variables for tracking direction changes
 current_direction = None  # 'left' or 'right'
 opposite_direction_counter = 0
@@ -184,23 +185,16 @@ def get_y_position(point, detection_data, camera_y=0):
 
     # Unpack point coordinates
     x, y, z = point
-    movement_type = detection_data.active_movement_type
 
     # Access the LiveConfig instance
     live_config = LiveConfig.get_instance()
 
-    if movement_type == "person":
-        # Use dividers for person movement
-        y_top_divider = live_config.y_top_divider
-        y_bottom_divider = live_config.y_bottom_divider
-        y_top_divider_angle = live_config.y_top_divider_angle
-        y_bottom_divider_angle = live_config.y_bottom_divider_angle
-    else:
-        # Use dividers for object movement
-        y_top_divider = live_config.y_top_divider_object
-        y_bottom_divider = live_config.y_bottom_divider_object
-        y_top_divider_angle = live_config.y_top_divider_angle
-        y_bottom_divider_angle = live_config.y_bottom_divider_angle
+    # Use dividers for person movement
+    y_top_divider = live_config.y_top_divider
+    y_bottom_divider = live_config.y_bottom_divider
+    y_top_divider_angle = live_config.y_top_divider_angle
+    y_bottom_divider_angle = live_config.y_bottom_divider_angle
+
 
     # Convert angles from degrees to radians
     angle_top_rad = math.radians(y_top_divider_angle)
@@ -269,5 +263,4 @@ def point_behind_plane(point, triangles):
     return False
 
 def get_z_position(point, camera_z=0):
-    triangles = define_depth_plane_segments(camera_z)
-    return 'f' if point_behind_plane(point, triangles) else 'c'
+    return 'c'

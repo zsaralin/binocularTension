@@ -12,20 +12,21 @@ class RandomWakeupManager:
     def random_wakeup(self):
         """Decide between simple wakeup and look-around wakeup."""
         if self.app_instance.debug_mode_manager.debug_mode or self.in_wakeup or not self.sleep_manager.in_sleep_mode:
-            return
-        print('random wakuep ')
-        look_around = random.random() < 0.75
+            return  # Skip if in wakeup, debug mode, or not in sleep mode
+        print('random wakeup')
+        self.in_wakeup = True  # Set in_wakeup to True since we're starting a wakeup
+        look_around = random.random() < 0.9
         if look_around:
             self.random_wakeup_look_around()
         else:
             self.random_wakeup_simple()
+
     def random_wakeup_simple(self):
         """Perform a simple wakeup sequence."""
-        self.in_wakeup = True
         prefix = "bt_"
 
         random_number = random.randint(0, 40)
-        first_letter = random.choice(['c', 'f'])
+        first_letter = random.choice(['c', 'c'])
         second_letter = random.choices(['u', 'd', 's'], weights=[1, 1, 2])[0]
         suffix_open = "o"
         suffix_closed = "c"
@@ -49,15 +50,16 @@ class RandomWakeupManager:
         QTimer.singleShot(durations[0] + durations[1], lambda: self.app_instance.display_image(half_closed_filename))
         QTimer.singleShot(durations[0] + durations[1] + durations[2], lambda: self.app_instance.display_image(closed_filename))
 
-        self.in_wakeup = False
+        # Schedule end of wakeup sequence
+        total_duration = durations[0] + durations[1] + durations[2]
+        QTimer.singleShot(total_duration, self.end_wakeup)
 
     def random_wakeup_look_around(self):
         """Perform a 'look around' wakeup sequence with jitter patterns."""
-        self.in_wakeup = True
         prefix = "bt_"
 
-        random_number = random.randint(0, 40)
-        first_letter = random.choice(['c', 'f'])
+        random_number = random.randint(0, 40)  # Starting position
+        first_letter = random.choice(['c', 'c'])
         second_letter = random.choices(['u', 'd', 's'], weights=[1, 1, 2])[0]
         suffix_open = "o"
         suffix_closed = "c"
@@ -75,51 +77,62 @@ class RandomWakeupManager:
         # Display half-open state first
         self.app_instance.display_image(half_closed_filename)
 
-        # Choose a random jitter pattern
+        # Human-like jitter patterns
         jitter_patterns_1 = [
-            [-1, 0],
-            [1, 0],
-            [-1, 1, 0],
-            [1, -1, 0],
-            [-1, 1, -1, 0],
-            [1, -1, 1, 0],
-            [1, 0, -1, 0, 1, 0],
-            [-1, -1, 0, 1, 1, 0],
-            [1, 1, 0, -1, -1, 0],
-            [0, 1, -2, 3, -1, 0],
-            [0, -1, 2, -3, 1, 0],
-            [1, 2, -3, 4, -2, 1, 0],
-            [-1, -2, 3, -4, 2, -1, 0],
-            [0, 1, 3, -2, 1, -3, 0],
-            [1, -3, 4, -2, 3, -1, 0],
-            [-1, 3, -4, 2, -3, 1, 0],
-            [1, 4, -3, 2, -1, 0, -2, 3, -4, 1, 0],
-            [-1, -4, 3, -2, 1, 0, 2, -3, 4, -1, 0],
-            [0, 1, 4, -3, 2, -1, 0, -1, -4, 3, -2, 1, 0],
+            [-1, 0], [1, 0],
+            [-1, 0, 1], [1, 0, -1],
+            [-1, 0, 1, 0, -1], [1, 0, -1, 0, 1],
+            [0, 1, 2, 1, 0], [0, -1, -2, -1, 0],
+            [0, 1, 2, 3, 2, 1, 0],
+            [1, 2, 3, 2, 1, 0, -1],
+            [0, 1, 2, 3, 3, 2, 1, 0, -1],
         ]
         chosen_pattern = random.choice(jitter_patterns_1)
 
-        # Generate "look around" positions based on the pattern
+        # Generate "look around" positions and durations
         positions = [random_number + offset for offset in chosen_pattern]
-        positions = [max(0, min(40, pos)) for pos in positions] 
-
-        # Generate filenames and durations for the sequence
+        positions = [max(0, min(40, pos)) for pos in positions]  # Clamp within valid range
         filenames = [
             f"{prefix}{pos}_{first_letter}{second_letter}{suffix_open}.jpg" for pos in positions
         ]
-        durations = [random.randint(100, 300) for _ in filenames[:-1]] + [100]
+        durations = [
+            random.randint(200, 400) for _ in filenames[:-2]
+        ] + [random.randint(500, 800)] + [100]  # Slightly longer at the end for focus
 
         # Replace the last filename's suffix with `h` for half-closed state
         if filenames:
             filenames[-1] = filenames[-1].replace(suffix_open, suffix_half_closed)
 
         # Display "look around" sequence
-        total_elapsed_time = 100
+        total_elapsed_time = 0
         for i, (filename, duration) in enumerate(zip(filenames, durations)):
-            QTimer.singleShot(total_elapsed_time, lambda fn=filename: self.app_instance.display_image(fn))
-            total_elapsed_time += duration
+            # Longer pauses for certain positions to simulate "focus"
+            focus_duration = 200 if i in {0, len(filenames) - 2} else 0
+            QTimer.singleShot(
+                total_elapsed_time,
+                lambda fn=filename: self.app_instance.display_image(fn),
+            )
+            total_elapsed_time += duration + focus_duration
 
         # Display closed state after the sequence
-        QTimer.singleShot(total_elapsed_time, lambda: self.app_instance.display_image(closed_filename))
+        QTimer.singleShot(
+            total_elapsed_time,
+            lambda: self.app_instance.display_image(closed_filename),
+        )
 
-        self.in_wakeup = False
+        # 80% chance to immediately start another random wakeup
+        QTimer.singleShot(
+            total_elapsed_time,
+            lambda: self.start_another_wakeup() if random.random() < 0.3 else self.end_wakeup()
+        )
+
+    def start_another_wakeup(self):
+        """Start another wakeup sequence immediately."""
+        print("Starting another random wakeup sequence.")
+        # No need to set in_wakeup to True again; it's already True
+        self.random_wakeup_look_around()
+
+    def end_wakeup(self):
+        """Mark the end of the wakeup sequence."""
+        print("Wakeup sequence complete.")
+        self.in_wakeup = False  # Reset in_wakeup flag

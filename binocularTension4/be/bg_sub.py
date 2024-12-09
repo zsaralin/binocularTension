@@ -5,7 +5,7 @@ import numpy as np
 # Configure the RealSense pipeline
 pipeline = rs.pipeline()
 config = rs.config()
-config.enable_stream(rs.stream.infrared, 640, 480, rs.format.y8, 30)  # Enable infrared stream
+config.enable_stream(rs.stream.infrared, 848, 480, rs.format.y8, 30)  # Enable infrared stream
 pipeline.start(config)
 
 # Initialize background subtractor

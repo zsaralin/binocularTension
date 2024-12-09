@@ -9,6 +9,39 @@ KEYPOINT_CONNECTIONS = [
     (11, 13), (13, 15), # Left leg (hip -> knee -> ankle)
     (12, 14), (14, 16)  # Right leg (hip -> knee -> ankle)
 ]
+import cv2
+
+def draw_bounding_boxes(tracked_objects, color_image, active_movement_id):
+    for obj in tracked_objects:
+        # Extract bounding box coordinates and ID
+        x1, y1, x2, y2 = obj["x1"], obj["y1"], obj["x2"], obj["y2"]
+        obj_id = obj["id"]
+
+        # Define bounding box color and label
+        if obj_id == active_movement_id:
+            color = (0,0,255)
+        else :
+            color = (0, 255, 0)  # Green for bounding box
+        label = f"ID: {obj_id}"
+
+        # Draw bounding box
+        cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
+
+        # Draw label above the bounding box
+        cv2.putText(
+            color_image, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
+        )
+
+    return color_image
+def draw_peaks(tracked_objects, color_image):
+    for obj in tracked_objects:
+        # Extract the peak point
+        peak = obj.get("peak")
+        if peak:
+            x_peak, y_peak = peak
+            cv2.circle(color_image, (int(x_peak), int(y_peak)), radius=3, color=(0, 255, 0), thickness=-1)
+
+    return color_image
 
 def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active_movement_id, active_movement_type, detection_data):
     """Draw bounding boxes around detected people with solid lines for moving persons, dotted lines for stationary ones,

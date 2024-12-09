@@ -9,7 +9,7 @@ from PyQt5.QtOpenGL import QGLWidget
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout
-from pointcloud_drawing_utils import draw_vertical_dividers,draw_horizontal_dividers, draw_keypoints, draw_movement_points, draw_depth_plane
+from pointcloud_drawing_utils import draw_vertical_dividers,draw_horizontal_dividers, draw_keypoints, draw_movement_points
 import cv2
 from detection_data import DetectionData
 from OpenGL.GL import *
@@ -17,7 +17,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import gluNewQuadric, gluSphere
 from transformation_utils import apply_dynamic_transformation
-from headpoint_utils import compute_general_head_points, compute_movement_points
+from headpoint_utils import compute_general_head_points, compute_movement_points, compute_object_points
 from active_movement_logic import update_active_movement
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
@@ -152,27 +152,43 @@ class GLWidget(QGLWidget):
                 self.colors = colors / 255.0  # Normalize colors
 
                 # Compute and store transformed elements for re-drawing when paused
-                persons_with_ids = self.detection_data.get_persons_with_ids()
-                non_person_movement_boxes = self.detection_data.get_non_person_movement_boxes()
-                person_moving_status = self.detection_data.get_person_moving_status()
+                # persons_with_ids = self.detection_data.get_persons_with_ids()
+                # non_person_movement_boxes = self.detection_data.get_non_person_movement_boxes()
+                # person_moving_status = self.detection_data.get_person_moving_status()
                 
+                # intrinsics = self.rs_manager.get_depth_intrinsics()  # Get RealSense intrinsics for depth calculations
+                # depth_image = np.asanyarray(depth_frame.get_data())
+                # depth_scale = self.rs_manager.get_depth_scale()  # Scale for converting depth value to meters
+                # draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation)
+                # self.headpoints_transformed = compute_general_head_points(
+                #     persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation
+                # )
+                # self.movement_points_transformed = compute_movement_points(
+                #     non_person_movement_boxes, intrinsics, depth_image, depth_scale, rotation, translation
+                # )
+                # self.active_movement_id, self.active_movement_type = update_active_movement(
+                #     self.headpoints_transformed, person_moving_status, self.movement_points_transformed,
+                #     image_width=640, image_height=480, intrinsics=intrinsics
+                # )
+
+                # self.detection_data.set_active_movement_id(self.active_movement_id)
+                # self.detection_data.set_active_movement_type(self.active_movement_type)
+
+                object_boxes = self.detection_data.get_object_boxes()
                 intrinsics = self.rs_manager.get_depth_intrinsics()  # Get RealSense intrinsics for depth calculations
                 depth_image = np.asanyarray(depth_frame.get_data())
                 depth_scale = self.rs_manager.get_depth_scale()  # Scale for converting depth value to meters
-                draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation)
-                self.headpoints_transformed = compute_general_head_points(
-                    persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation
+                self.headpoints_transformed = compute_object_points(
+                    object_boxes, intrinsics, depth_image, depth_scale, rotation, translation
                 )
-                self.movement_points_transformed = compute_movement_points(
-                    non_person_movement_boxes, intrinsics, depth_image, depth_scale, rotation, translation
-                )
-                self.active_movement_id, self.active_movement_type = update_active_movement(
-                    self.headpoints_transformed, person_moving_status, self.movement_points_transformed,
-                    image_width=640, image_height=480, intrinsics=intrinsics
+                self.active_movement_id = update_active_movement(
+                    self.headpoints_transformed,
+                    image_width=848, image_height=480, intrinsics=intrinsics
                 )
 
                 self.detection_data.set_active_movement_id(self.active_movement_id)
-                self.detection_data.set_active_movement_type(self.active_movement_type)
+                # self.detection_data.set_active_movement_type(self.active_movement_type)
+
 
         # Always render the stored vertices and colors
         if self.vertices is not None and self.colors is not None:
@@ -187,9 +203,8 @@ class GLWidget(QGLWidget):
         # Always re-draw stored headpoints, keypoints, and other elements
             draw_movement_points(self.headpoints_transformed, self.movement_points_transformed, self.active_movement_id, self.active_movement_type)
         if self.live_config.draw_planes:
-            # draw_vertical_dividers()
+            draw_vertical_dividers()
             draw_horizontal_dividers()
-            # draw_depth_plane()
         self.cube_manager.draw_cubes()
             
 

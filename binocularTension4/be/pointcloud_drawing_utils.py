@@ -151,7 +151,7 @@ def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0, num_slices=80):
         glColor4f(0.5, 0.5, 0.5, 0.5)  # Light gray color with moderate transparency
 
         # Translate to the starting position of the plane
-        glTranslatef(0, y, 0)
+        glTranslatef(0, y, live_config.camera_z)
 
         # Apply rotation to tilt the plane
         glRotatef(angle, 1.0, 0.0, 0.0)  # Rotate around the x-axis for tilt
@@ -175,58 +175,6 @@ def draw_horizontal_dividers(camera_y=0, depth=30.0, width=50.0, num_slices=80):
         glEnd()
 
         glPopMatrix()  # Restore the previous matrix
-def draw_depth_plane(camera_z=0, segments=20):
-    # Access the LiveConfig instance
-    live_config = LiveConfig.get_instance()
-
-    # Get depth offset and curve radius from configuration
-    depth_offset = -live_config.z_divider
-    curve_radius = live_config.z_divider_curve
-    plane_z = camera_z + depth_offset
-
-    # Enable blending for transparency
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    glColor4f(0.0, 0.5, 1.0, 0.3)  # Set color to semi-transparent blue
-
-    glPushMatrix()  # Save the current matrix
-
-    # Translate to the starting position of the plane
-    glTranslatef(0, 0, plane_z)
-
-    # Set up the angle span if curve_radius is non-zero, otherwise keep it flat
-    angle_span = math.pi if curve_radius != 0 else 0  # 180 degrees only if curved
-    start_angle = -angle_span / 2
-
-    # Iterate through segments to create the plane
-    for i in range(segments):
-        # Calculate angles for current and next segments
-        angle1 = start_angle + (i * angle_span / segments)
-        angle2 = start_angle + ((i + 1) * angle_span / segments)
-
-        # Calculate x and z positions based on curve radius and angles
-        if curve_radius != 0:
-            x1 = curve_radius * math.sin(angle1)
-            z1 = -curve_radius * math.cos(angle1)  # Direction depends on curve radius sign
-            x2 = curve_radius * math.sin(angle2)
-            z2 = -curve_radius * math.cos(angle2)
-        else:
-            # For a flat plane, x remains constant along the segment width, and z is just plane_z
-            x1, z1 = (i - segments / 2) * (2000.0 / segments), 0
-            x2, z2 = ((i + 1) - segments / 2) * (2000.0 / segments), 0
-
-        # Draw each segment with an "infinite" y range
-        glBegin(GL_QUADS)
-        glVertex3f(x1, -1000.0, z1)  # Bottom-left corner, extended downward
-        glVertex3f(x2, -1000.0, z2)  # Bottom-right corner, extended downward
-        glVertex3f(x2, 1000.0, z2)   # Top-right corner, extended upward
-        glVertex3f(x1, 1000.0, z1)   # Top-left corner, extended upward
-        glEnd()
-
-    glPopMatrix()  # Restore the previous matrix
-
-    # Disable blending after drawing
-    glDisable(GL_BLEND)
 
 def draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation):
     """Draws 3D keypoints as spheres and connects them with 3D lines according to the skeleton structure.
@@ -336,9 +284,10 @@ def draw_movement_points(
         # Draw the sphere for the head point
         glPushMatrix()
         glTranslatef(x_h, y_h, z_h)  # Move to the head point's location
-        gluSphere(gluNewQuadric(), 0.07, 16, 16)  # Draw a sphere with radius 0.05
+        gluSphere(gluNewQuadric(), 0.07, 30, 30)  # Draw a sphere with radius 0.05
         glPopMatrix()
-
+    if transformed_movement_points is None:
+        return
     # Draw movement points
     for obj_id, movement_point in transformed_movement_points.items():
         x_m, y_m, z_m = movement_point
