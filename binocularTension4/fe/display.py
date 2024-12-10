@@ -130,7 +130,8 @@ class FullScreenBlinkApp(QWidget):
         if self.update_in_progress:
             print("Update in progress, ignoring new update.")
             return
-
+     
+     
         # Extract x values from filenames
         current_x = self.extract_x_from_filename(self.current_filename)
         new_x = self.extract_x_from_filename(filename)

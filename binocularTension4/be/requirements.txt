@@ -6,3 +6,4 @@ PyOpenGl
 Pillow
 ultralytics
 deep_sort_realtime
+norfair
