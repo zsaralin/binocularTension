@@ -4,7 +4,7 @@ import numpy as np
 from ultralytics import YOLO
 
 # Load the YOLOv11 model
-model = YOLO("../yolo/best.pt")  # Replace with your custom model path
+model = YOLO("../yolo/yolo11n.pt")  # Replace with your custom model path
 
 def draw_bounding_boxes(image, detections):
     """

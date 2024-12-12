@@ -119,12 +119,13 @@ class RandomWakeupManager:
             total_elapsed_time,
             lambda: self.app_instance.display_image(closed_filename),
         )
-
-        # 80% chance to immediately start another random wakeup
-        QTimer.singleShot(
-            total_elapsed_time,
-            lambda: self.start_another_wakeup() if random.random() < 0.3 else self.end_wakeup()
-        )
+        if random.random() < .3:
+            QTimer.singleShot(
+                total_elapsed_time  +  random.randint(200, 800) ,
+                lambda: self.start_another_wakeup() 
+            )
+        else:
+            self.end_wakeup()
 
     def start_another_wakeup(self):
         """Start another wakeup sequence immediately."""

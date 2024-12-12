@@ -25,11 +25,10 @@ class LiveConfig:
         self.x_divider_angle = 0
         self.draw_planes = True
         self.min_contour_area = 200  # Default for minimum contour area
-        self.movement_thres = 5  # Default threshold for person movement
+        self.movement_thres = 2  # Default threshold for person movement
         self.headpoint_smoothing = 0.5
         self.tracking_hold_duration = 5
         self.extended_timeout = 2
-        self.always_closest = True
         self.point_size = 1
         self.num_divisions = 40
         self.history = 1000  # Background subtractor history
@@ -45,7 +44,6 @@ class LiveConfig:
         self.y_threshold_max = 0
         self.stable_x_thres = 0
         self.stable_y_thres = 0
-        self.stable_z_thres = 0
         self.detect_people = True
         self.detect_objects = True
     # Accessor for the singleton instance

@@ -85,7 +85,7 @@ class SleepManager(QObject):
             self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
-        timeout_ms = self.display_off_timeout_hours# * 3600 * 1000
+        timeout_ms = self.display_off_timeout_hours * 3600 * 1000
         self.display_off_timer.start(timeout_ms)
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 

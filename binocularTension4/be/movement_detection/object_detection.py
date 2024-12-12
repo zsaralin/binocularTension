@@ -222,12 +222,31 @@ class ObjectDetector:
                 displacement = np.linalg.norm(current_position - last_position)
                 movement_status = self.tracked_objects_movement_status[obj_id]['movement_status']
 
+                # Modified logic: Object is considered moving only if displacement > movement_threshold AND
+                # there is foreground (bg_sub) inside its bounding box.
                 if displacement > movement_threshold:
-                    # Object is moving
-                    self.tracked_objects_movement_status[obj_id]['movement_status'] = 'moving'
-                    self.tracked_objects_movement_status[obj_id]['last_moved_time'] = current_time
-                    self.tracked_objects_movement_status[obj_id]['stopped_time'] = None
+                    # Check fg_mask region inside bounding box
+                    x1, y1, x2, y2 = self._get_bounding_box(tracked_object, display_image.shape)
+                    fg_region = fg_mask[y1:y2, x1:x2]
+
+                    if np.count_nonzero(fg_region) > 0:
+                        # Object is moving
+                        self.tracked_objects_movement_status[obj_id]['movement_status'] = 'moving'
+                        self.tracked_objects_movement_status[obj_id]['last_moved_time'] = current_time
+                        self.tracked_objects_movement_status[obj_id]['stopped_time'] = None
+                    else:
+                        # No bg_sub indication of movement, treat as if not moving
+                        if movement_status == 'moving':
+                            # Object has stopped moving
+                            self.tracked_objects_movement_status[obj_id]['movement_status'] = 'stationary'
+                            self.tracked_objects_movement_status[obj_id]['stopped_time'] = current_time
+                        elif movement_status == 'stationary':
+                            stopped_time = self.tracked_objects_movement_status[obj_id]['stopped_time']
+                            if stopped_time is not None and (current_time - stopped_time) > 20:
+                                # Object has been stationary for more than 20 seconds, mark as 'stopped'
+                                self.tracked_objects_movement_status[obj_id]['movement_status'] = 'stopped'
                 else:
+                    # displacement <= movement_threshold
                     if movement_status == 'moving':
                         # Object has stopped moving
                         self.tracked_objects_movement_status[obj_id]['movement_status'] = 'stationary'

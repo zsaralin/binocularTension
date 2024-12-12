@@ -16,7 +16,7 @@ import re  # Import re module for regular expressions
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
-    largest_screen = max(screens, key=lambda screen: screen.size().width() * screen.size().height())
+    largest_screen = min(screens, key=lambda screen: screen.size().width() * screen.size().height())
     return largest_screen
 
 class FullScreenBlinkApp(QWidget):
@@ -26,7 +26,7 @@ class FullScreenBlinkApp(QWidget):
         super().__init__()
         self.image_folders = {  # Store folders with labels
             "jade": image_folders[0],
-            # "gab": image_folders[1],
+            "gab": image_folders[1],
         }
         self.current_folder = "jade"  # Start with "jade" folder
         self.label = QLabel(self)
@@ -63,6 +63,8 @@ class FullScreenBlinkApp(QWidget):
 
         # Initialize control panel
         self.control_panel = None
+
+        self.update_skip_count = 0 
 
     def load_images(self):
         for folder_key, folder_path in self.image_folders.items():
@@ -129,8 +131,11 @@ class FullScreenBlinkApp(QWidget):
             self.blink_sleep_manager.sleep_manager.turn_on_display_()
         if self.update_in_progress:
             print("Update in progress, ignoring new update.")
+            self.update_skip_count+= 1
+            if self.update_skip_count == 3:
+                self.update_skip_count = 0
+                self.update_in_progress = False
             return
-     
      
         # Extract x values from filenames
         current_x = self.extract_x_from_filename(self.current_filename)
@@ -145,13 +150,18 @@ class FullScreenBlinkApp(QWidget):
                     print("Simulating blink with position change.")
                     # Prevent updates during blink
                     self.update_in_progress = True
-                    # Call simulate_blink with the new filename
-                    self.blink_sleep_manager.blink_manager.simulate_blink(new_filename=filename)
-                    # Finish update after blink duration
-                    blink_speed = self.live_config.blink_speed  # Higher is faster
-                    base_delay = 600  # Base delay in ms for the slowest speed
-                    total_blink_duration = int((base_delay / blink_speed) * 5)  # 5 steps in simulate_blink
-                    QTimer.singleShot(total_blink_duration, lambda: self.finish_update(filename))
+                    try:
+                        # Call simulate_blink with the new filename
+                        self.blink_sleep_manager.blink_manager.simulate_blink(new_filename=filename)
+                        # Finish update after blink duration
+                        blink_speed = self.live_config.blink_speed  # Higher is faster
+                        base_delay = 600  # Base delay in ms for the slowest speed
+                        total_blink_duration = int((base_delay / blink_speed) * 5)  # 5 steps in simulate_blink
+                        QTimer.singleShot(total_blink_duration, lambda: self.finish_update(filename))
+                    except Exception as e:
+                        print(f"Error during update: {e}")
+                    finally:
+                        self.update_in_progress = False
                 else:
                     # Perform intermediate steps as before
                     print("Performing intermediate steps for large delta.")
@@ -255,7 +265,7 @@ class FullScreenBlinkApp(QWidget):
             self.toggle_control_panel()
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folders = ["./eyeballImages/Jade", "./eyeballImages/Gab"]
+    image_folders = ["./eyeballImages/Jade0", "./eyeballImages/Gab0"]
     window = FullScreenBlinkApp(image_folders)
     window.start_server_thread('localhost', 65432)
     sys.exit(app.exec_())

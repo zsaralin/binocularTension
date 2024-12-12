@@ -35,10 +35,10 @@ class ControlPanelWidget(QWidget):
         ]
         self.movement = [
             self.config['min_contour_area'], self.config['movement_thres'], self.config['headpoint_smoothing'], 
-            self.config['tracking_hold_duration'], self.config['extended_timeout'], self.config['always_closest']
+            self.config['tracking_hold_duration'], self.config['extended_timeout']
         ]
         self.smoothing = [
-            self.config['stable_thres_x'], self.config['stable_thres_y'], self.config['stable_thres_z']
+            self.config['stable_thres_x'], self.config['stable_thres_y']
         ]
         self.point_size = [self.config.get("point_size", 2)]  # Single-item list for point size
         self.num_divisions = [self.config.get("num_divisions", 10)]  # Single-item list for num_divisions
@@ -81,7 +81,6 @@ class ControlPanelWidget(QWidget):
                 "headpoint_smoothing": 0.5,
                 "tracking_hold_duration": 5,
                 "extended_timeout": 2,
-                "always_closest": True,
                 "point_size": 2,
                 "num_divisions": 10,
                 "x_threshold_min": 0,
@@ -92,7 +91,6 @@ class ControlPanelWidget(QWidget):
                 "z_threshold_max": 10,
                 "stable_thres_x": 10,
                 "stable_thres_y": 0,
-                "stable_thres_z": 10,
                 "detect_people": True,
                 "detect_objects": True
             }
@@ -129,7 +127,6 @@ class ControlPanelWidget(QWidget):
             "z_threshold_max": self.thresholds[5],
             "stable_thres_x": self.smoothing[0],
             "stable_thres_y": self.smoothing[1],
-            "stable_thres_z": self.smoothing[2],
             "detect_people": self.detection_type[0],
             "detect_objects": self.detection_type[1]
         }
@@ -230,18 +227,13 @@ class ControlPanelWidget(QWidget):
         self.create_slider_group(content_layout, "Headpoint Smoothing", 2, 0, 1, self.movement, 2, 0.1)
         self.create_slider_group(content_layout, "Tracking Hold Duration (s)", 3, 0, 15, self.movement, 3, 1)
         self.create_slider_group(content_layout, "Extended Timeout (s)", 4, 0, 15, self.movement, 4, 1)
-        # Draw Planes checkbox
-        always_closest_checkbox = QCheckBox("Always Closest")
-        always_closest_checkbox.setChecked(self.movement[5])
-        always_closest_checkbox.stateChanged.connect(lambda state: setattr(self.live_config, 'always_closest', bool(state)))
-        content_layout.addWidget(always_closest_checkbox)
+  
 
         label = QLabel("Smoothing")
         label.setStyleSheet("font-weight: bold;")
         content_layout.addWidget(label)
         self.create_slider_group(content_layout, "X Thres", 0, 0, 100, self.smoothing, 0, 1)
         self.create_slider_group(content_layout, "Y Thres", 1, 0, 100, self.smoothing, 1, 1)
-        self.create_slider_group(content_layout, "Z Thres", 2, 0, 100, self.smoothing, 2, 1)
 
         # Point Size slider
         label = QLabel("Point Cloud Settings")
@@ -390,7 +382,6 @@ class ControlPanelWidget(QWidget):
         self.live_config.headpoint_smoothing = self.movement[2]
         self.live_config.tracking_hold_duration = self.movement[3]
         self.live_config.extended_timeout = self.movement[4]
-        self.live_config.always_closest = self.movement[5]
         self.live_config.point_size = self.point_size[0]
         self.live_config.num_divisions = self.num_divisions[0]
         self.live_config.x_threshold_min = self.thresholds[0]
@@ -401,7 +392,6 @@ class ControlPanelWidget(QWidget):
         self.live_config.z_threshold_max = self.thresholds[5]
         self.live_config.stable_x_thres = self.smoothing[0]
         self.live_config.stable_y_thres = self.smoothing[1]
-        self.live_config.stable_z_thres = self.smoothing[2]
         self.live_config.detect_people = self.detection_type[0]
         self.live_config.detect_objects = self.detection_type[1]
 
@@ -419,9 +409,9 @@ class ControlPanelWidget(QWidget):
         elif target_list == self.divider:
             setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider","x_divider_angle", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
         elif target_list == self.movement:
-            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout","always_closest"][index], target_list[index])
+            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout"][index], target_list[index])
         elif target_list == self.smoothing:
-            setattr(self.live_config, ["stable_x_thres","stable_y_thres","stable_z_thres"][index], target_list[index])
+            setattr(self.live_config, ["stable_x_thres","stable_y_thres"][index], target_list[index])
         elif target_list == self.thresholds:
             setattr(self.live_config, ["x_threshold_min", "x_threshold_max", "y_threshold_min", "y_threshold_max", "z_threshold_min", "z_threshold_max"][index], target_list[index])
         elif target_list == self.detection_type:

@@ -63,7 +63,7 @@ class RGBWidget(QWidget):
         depth_image = np.asanyarray(depth_frame.get_data())
         depth_scale = self.rs_manager.get_depth_scale()  # Scale for converting depth value to meters
         tracked_objects =self.object_detector.detect_objects(display_image,depth_image, intrinsics, depth_scale)
-        draw_bounding_boxes(tracked_objects, display_image, self.detection_data.active_movement_id)
+        draw_bounding_boxes(tracked_objects, display_image, self.detection_data.active_movement_id, self.detection_data)
         draw_peaks(tracked_objects, display_image)
         # tracks, keypoints_data, detections, person_boxes, person_moving_status, non_person_movement_boxes, persons_with_ids = \
         #     self.detector.detect_movement_and_pose(display_image)

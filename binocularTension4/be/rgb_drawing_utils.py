@@ -11,14 +11,16 @@ KEYPOINT_CONNECTIONS = [
 ]
 import cv2
 
-def draw_bounding_boxes(tracked_objects, color_image, active_movement_id):
+def draw_bounding_boxes(tracked_objects, color_image, active_movement_id, detection_data):
     for obj in tracked_objects:
         # Extract bounding box coordinates and ID
         x1, y1, x2, y2 = obj["x1"], obj["y1"], obj["x2"], obj["y2"]
         obj_id = obj["id"]
-
+        people_outside_thresholds = detection_data.get_objects_outside_thresholds()
         # Define bounding box color and label
-        if obj_id == active_movement_id:
+        if obj_id in people_outside_thresholds:
+            color = (127, 127, 127)  # Grey for people outside thresholds
+        elif obj_id == active_movement_id:
             color = (0,0,255)
         else :
             color = (0, 255, 0)  # Green for bounding box
@@ -55,7 +57,7 @@ def draw_person_bounding_boxes(tracks, color_image, person_moving_status, active
         track_id = track.track_id
         ltrb = track.to_ltrb()
         x1, y1, x2, y2 = map(int, ltrb)
-
+        
         # Determine color based on active movement status or if the person is outside thresholds
         if track_id in people_outside_thresholds:
             bbox_color = (127, 127, 127)  # Grey for people outside thresholds

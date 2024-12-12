@@ -12,7 +12,7 @@
     "max_jitter_interval": 6,
     "min_jitter_speed": 500,
     "max_jitter_speed": 800,
-    "display_off_timeout": 1,
+    "display_off_timeout": 2,
     "stretch_x": 1,
     "stretch_y": 1,
     "nervousness": 0.4

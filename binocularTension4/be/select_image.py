@@ -18,7 +18,6 @@ live_config = LiveConfig.get_instance()
 prev_movement_id = None
 x_position_history = deque(maxlen=live_config.stable_x_thres)
 y_position_history = deque(maxlen=live_config.stable_y_thres)
-depth_history = deque(maxlen=live_config.stable_z_thres)
 
 # Stores the last known stable values
 stable_x_pos = None
@@ -41,8 +40,6 @@ def update_deque_maxlen():
         x_position_history = deque(x_position_history, maxlen=live_config.stable_x_thres)
     if y_position_history.maxlen != live_config.stable_y_thres:
         y_position_history = deque(y_position_history, maxlen=live_config.stable_y_thres)
-    if depth_history.maxlen != live_config.stable_z_thres:
-        depth_history = deque(depth_history, maxlen=live_config.stable_z_thres)
 
 def send_filename_to_server(filename):
     eye_widget = EyeWidget()
@@ -69,21 +66,17 @@ def get_image(point, image_width, image_height):
 
     x_pos = find_x_divider_index(point)
     y_pos = get_y_position(point, detection_data)
-    z_pos = get_z_position(point)
 
     if movement_id == prev_movement_id:
         # Apply hysteresis for x, y, and z positions if the same person
         stable_x_pos = apply_x_hysteresis(x_position_history, x_pos, stable_x_pos)
         stable_y_pos = apply_hysteresis(y_position_history, y_pos, stable_y_pos, live_config.stable_y_thres)
-        stable_z_pos = apply_hysteresis(depth_history, z_pos, stable_z_pos, live_config.stable_z_thres)
     else:
         # Reset history and update stable positions for a new movement ID
         x_position_history.clear()
         y_position_history.clear()
-        depth_history.clear()
         stable_x_pos = x_pos
         stable_y_pos = y_pos
-        stable_z_pos = z_pos
         prev_movement_id = movement_id
 
     # if stable_x_pos and stable_y_pos and stable_z_pos:
@@ -249,18 +242,6 @@ def define_depth_plane_segments(camera_z=0, segments=20):
         triangles.extend([triangle1, triangle2])
 
     return triangles
-
-def point_behind_plane(point, triangles):
-    p = np.array(point)
-
-    for triangle in triangles:
-        v0, v1, v2 = np.array(triangle[0]), np.array(triangle[1]), np.array(triangle[2])
-        normal = np.cross(v1 - v0, v2 - v0)
-        normal /= np.linalg.norm(normal)
-        distance = np.dot(normal, p - v0)
-        if distance < 0:
-            return True
-    return False
 
 def get_z_position(point, camera_z=0):
     return 'c'
