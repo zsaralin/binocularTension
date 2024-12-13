@@ -78,12 +78,12 @@ class SleepManager(QObject):
         QTimer.singleShot(100, lambda: self.app_instance.display_image(closed_eye_filename))
 
     def exit_sleep_mode(self):
-        if self.in_sleep_mode:
-            self.in_sleep_mode = False
-            print("Exiting sleep mode...")
-            self.sleep_timer.stop()  # Stop the current sleep timer to avoid re-triggering
-            self.schedule_sleep_timer()
-            self.sleep_mode_exited.emit()
+        # if self.in_sleep_mode:
+        self.in_sleep_mode = False
+        print("Exiting sleep mode...")
+        self.sleep_timer.stop()  # Stop the current sleep timer to avoid re-triggering
+        self.schedule_sleep_timer()
+        self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
         timeout_ms = self.display_off_timeout_hours# * 3600 * 1000

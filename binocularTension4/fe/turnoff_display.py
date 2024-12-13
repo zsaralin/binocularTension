@@ -7,7 +7,7 @@ def turn_off_display():
     """
     try:
         print("Turning off HDMI display...")
-        subprocess.run(["DisplaySwitch.exe", "/internal"], check=True)
+        subprocess.run(["DisplaySwitch.exe", "/external"], check=True) # could be external or internal 
         print("HDMI display successfully turned off.")
     except subprocess.CalledProcessError as e:
         print(f"Error executing DisplaySwitch to turn off HDMI: {e}")

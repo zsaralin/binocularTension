@@ -11,6 +11,7 @@ from debug_mode import DebugModeManager  # Import DebugModeManager
 from blink_sleep_manager import BlinkSleepManager  # Import the new BlinkSleepManager class
 import time
 import random
+import subprocess
 import re  # Import re module for regular expressions
 
 def get_largest_display():
@@ -26,7 +27,7 @@ class FullScreenBlinkApp(QWidget):
         super().__init__()
         self.image_folders = {  # Store folders with labels
             "jade": image_folders[0],
-            "gab": image_folders[1],
+            # "gab": image_folders[1],
         }
         self.current_folder = "jade"  # Start with "jade" folder
         self.label = QLabel(self)
@@ -42,12 +43,13 @@ class FullScreenBlinkApp(QWidget):
 
         # Load live config values
         self.live_config = DisplayLiveConfig.get_instance()
-
+        self.blink_sleep_manager = BlinkSleepManager(self)
+        self.blink_sleep_manager.sleep_manager.turn_on_display_()
         # Set up window
         largest_screen = get_largest_display()
         self.move(largest_screen.geometry().x(), largest_screen.geometry().y())
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.showFullScreen()
+
 
         # Load images
         self.image_filenames = {"jade": [], "gab": []}
@@ -55,7 +57,6 @@ class FullScreenBlinkApp(QWidget):
         self.load_images()
 
         # Initialize BlinkSleepManager
-        self.blink_sleep_manager = BlinkSleepManager(self)
 
         # Display initial image and set up signal for server updates
         self.display_image(self.current_filename)
@@ -65,6 +66,17 @@ class FullScreenBlinkApp(QWidget):
         self.control_panel = None
 
         self.update_skip_count = 0 
+        def run_subprocess():
+            subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\bt\\binocularTension\\binocularTension4\\be')
+
+        # Start the subprocess in a separate thread
+        subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
+        subprocess_thread.start()
+
+        self.showFullScreen()
+        self.raise_()
+
+
 
     def load_images(self):
         for folder_key, folder_path in self.image_folders.items():
@@ -266,9 +278,13 @@ class FullScreenBlinkApp(QWidget):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_G:
             self.toggle_control_panel()
+            
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folders = ["./eyeballImages/Jade", "./eyeballImages/Gab"]
+    image_folders = ["./eyeballImages/Jade"]#, "./eyeballImages/Gab"]
+
+    # Initialize and start the PyQt application
     window = FullScreenBlinkApp(image_folders)
     window.start_server_thread('localhost', 65432)
+
     sys.exit(app.exec_())

@@ -77,7 +77,6 @@ class ObjectDetector:
         # Determine whether to filter detections to ROI
         filter_to_roi = False
         roi_coords = None
-        print(self.person_missing)
         if self.person_missing:
             time_elapsed = time.time() - self.lost_time
             if time_elapsed < self.live_config.roi_filter_dur and self.last_active_bb is not None:
@@ -314,7 +313,6 @@ class ObjectDetector:
         if not found_active_movement:
             if self.active_movement_start_time is not None and self.active_movement_last_seen_time is not None:
                 active_duration = self.active_movement_last_seen_time - self.active_movement_start_time
-                print(active_duration)
                 if active_duration >= 0:
                     if not self.person_missing :
                         # Person just disappeared after being active for at least 3 seconds

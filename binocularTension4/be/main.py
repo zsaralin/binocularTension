@@ -145,7 +145,9 @@ class MainWindow(QMainWindow):
 
         # Center the window on the screen
         self.center_window()
+        self.lower()
         self.show()
+        
 
     def center_window(self):
         """Center the main window on the screen."""
@@ -199,4 +201,6 @@ if __name__ == '__main__':
     QSurfaceFormat.setDefaultFormat(fmt)
 
     window = MainWindow()
+    window.lower()
+
     sys.exit(app.exec_())
