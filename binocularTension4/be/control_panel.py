@@ -35,7 +35,7 @@ class ControlPanelWidget(QWidget):
         ]
         self.movement = [
             self.config['min_contour_area'], self.config['movement_thres'], self.config['headpoint_smoothing'], 
-            self.config['tracking_hold_duration'], self.config['extended_timeout']
+           self.config['active_object_stick_time'], self.config['conf_thres'], self.config["stationary_timeout"], self.config["roi_filter_dur"]
         ]
         self.smoothing = [
             self.config['stable_thres_x'], self.config['stable_thres_y']
@@ -79,8 +79,10 @@ class ControlPanelWidget(QWidget):
                 "min_contour_area": 500,
                 "movement_thres": 10,
                 "headpoint_smoothing": 0.5,
-                "tracking_hold_duration": 5,
-                "extended_timeout": 2,
+                "active_object_stick_time" : 3,
+                "conf_thres" : .1, 
+                "stationary_timeout": 20,
+                "roi_filter_dur" : 10, 
                 "point_size": 2,
                 "num_divisions": 10,
                 "x_threshold_min": 0,
@@ -114,9 +116,10 @@ class ControlPanelWidget(QWidget):
             "min_contour_area": self.movement[0],
             "movement_thres": self.movement[1],
             "headpoint_smoothing": self.movement[2],
-            "tracking_hold_duration": self.movement[3],
-            "extended_timeout": self.movement[4],
-            "always_closest": self.movement[5],
+            "active_object_stick_time" : self.movement[3],
+            "conf_thres" : self.movement[4],
+            "stationary_timeout" : self.movement[5],
+            "roi_filter_dur" : self.movement[6],
             "point_size": self.point_size[0],
             "num_divisions": self.num_divisions[0],
             "x_threshold_min": self.thresholds[0],
@@ -225,9 +228,11 @@ class ControlPanelWidget(QWidget):
         self.create_slider_group(content_layout, "Min Contour Area", 0, 100, 1000, self.movement, 0, 1)
         self.create_slider_group(content_layout, "Movement Threshold", 1, 1, 20, self.movement, 1, 1)
         self.create_slider_group(content_layout, "Headpoint Smoothing", 2, 0, 1, self.movement, 2, 0.1)
-        self.create_slider_group(content_layout, "Tracking Hold Duration (s)", 3, 0, 15, self.movement, 3, 1)
-        self.create_slider_group(content_layout, "Extended Timeout (s)", 4, 0, 15, self.movement, 4, 1)
-  
+        self.create_slider_group(content_layout, "Active Object Stick Time", 3, 0, 5, self.movement, 3, 1)
+        self.create_slider_group(content_layout, "Conf Thres", 4, 0, 1, self.movement, 4, 0.1)
+        self.create_slider_group(content_layout, "Stationary Timeout", 5, 0, 40, self.movement, 5, 1)
+        self.create_slider_group(content_layout, "ROI Filter Dur", 6, 0, 20, self.movement, 6, 1)
+
 
         label = QLabel("Smoothing")
         label.setStyleSheet("font-weight: bold;")
@@ -250,12 +255,12 @@ class ControlPanelWidget(QWidget):
         label = QLabel("Detection Type")
         label.setStyleSheet("font-weight: bold;")
         content_layout.addWidget(label)
-        detect_people_checkbox = QCheckBox("Detect People")
+        detect_people_checkbox = QCheckBox("Detect Yolo Objects")
         detect_people_checkbox.setChecked(self.detection_type[0])
         detect_people_checkbox.stateChanged.connect(lambda state: setattr(self.live_config, 'detect_people', bool(state)))
         content_layout.addWidget(detect_people_checkbox)
 
-        detect_objects_checkbox = QCheckBox("Detect Objects")
+        detect_objects_checkbox = QCheckBox("Detect Other Objects")
         detect_objects_checkbox.setChecked(self.detection_type[1])
         detect_objects_checkbox.stateChanged.connect(lambda state: setattr(self.live_config, 'detect_objects', bool(state)))
         content_layout.addWidget(detect_objects_checkbox)
@@ -380,8 +385,10 @@ class ControlPanelWidget(QWidget):
         self.live_config.min_contour_area = self.movement[0]
         self.live_config.movement_thres = self.movement[1]
         self.live_config.headpoint_smoothing = self.movement[2]
-        self.live_config.tracking_hold_duration = self.movement[3]
-        self.live_config.extended_timeout = self.movement[4]
+        self.live_config.active_object_stick_time = self.movement[3]
+        self.live_config.conf_thres = self.movement[4]
+        self.live_config.stationary_timeout = self.movement[5]
+        self.live_config.roi_filter_dur = self.movement[6]
         self.live_config.point_size = self.point_size[0]
         self.live_config.num_divisions = self.num_divisions[0]
         self.live_config.x_threshold_min = self.thresholds[0]
@@ -409,7 +416,7 @@ class ControlPanelWidget(QWidget):
         elif target_list == self.divider:
             setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider","x_divider_angle", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
         elif target_list == self.movement:
-            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "tracking_hold_duration", "extended_timeout"][index], target_list[index])
+            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "active_object_stick_time", "conf_thres", "stationary_timeout", "roi_filter_dur"][index], target_list[index])
         elif target_list == self.smoothing:
             setattr(self.live_config, ["stable_x_thres","stable_y_thres"][index], target_list[index])
         elif target_list == self.thresholds:

@@ -2,7 +2,6 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2
 import time
-from rgb_drawing_utils import bbox_iou
 from live_config import LiveConfig  # Import LiveConfig for dynamic configuration
 from detection_data import DetectionData
 # Configuration variables

@@ -1,26 +1,19 @@
-import sys
-import math
 import numpy as np
 import pyrealsense2 as rs
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QSurfaceFormat
 from PyQt5.QtOpenGL import QGLWidget
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QWidget, QHBoxLayout
-from pointcloud_drawing_utils import draw_vertical_dividers,draw_horizontal_dividers, draw_keypoints, draw_movement_points
+from pointcloud_drawing_utils import draw_vertical_dividers,draw_horizontal_dividers, draw_movement_points
 import cv2
 from detection_data import DetectionData
-from OpenGL.GL import *
-from OpenGL.GLU import *
-from OpenGL.GLUT import *
-from OpenGL.GLU import gluNewQuadric, gluSphere
 from transformation_utils import apply_dynamic_transformation
-from headpoint_utils import compute_general_head_points, compute_movement_points, compute_object_points
+from headpoint_utils import compute_object_points
 from active_movement_logic import update_active_movement
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
+
 class AppState:
 
     def __init__(self, *args, **kwargs):
@@ -76,9 +69,6 @@ class GLWidget(QGLWidget):
         self.active_movement_id = None
         self.active_movement_type = None
 
-        
-
-
     def initializeGL(self):
         glClearColor(0, 0, 0, 1)
         glEnable(GL_DEPTH_TEST)
@@ -91,9 +81,16 @@ class GLWidget(QGLWidget):
         glLoadIdentity()
         gluPerspective(60.0, aspect, 0.01, 100.0)
         glMatrixMode(GL_MODELVIEW)
-        
 
     def paintGL(self):
+        self._prepare_opengl()
+
+        if not state.paused:
+            self._process_frames_and_vertices()
+
+        self._render_scene()
+
+    def _prepare_opengl(self):
         glPointSize(self.live_config.point_size)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
@@ -101,96 +98,77 @@ class GLWidget(QGLWidget):
         glRotatef(state.pitch, 1, 0, 0)
         glRotatef(state.yaw, 0, 1, 0)
 
-        # Clear and load identity only if not paused
-        if not state.paused:
-            # Update vertices, colors, and additional elements only if not paused
-            depth_frame = self.rs_manager.get_depth_frame()
-            color_frame = self.rs_manager.get_color_frame()
-            if depth_frame:
-                if not self.detection_data._is_dark: self.pc.map_to(color_frame)
-                points = self.pc.calculate(depth_frame)
+    def _process_frames_and_vertices(self):
+        depth_frame = self.rs_manager.get_depth_frame()
+        color_frame = self.rs_manager.get_color_frame()
 
-                v, t = points.get_vertices(), points.get_texture_coordinates()
-                verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)
-                texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)
-                verts[:, 0] *= -1  # Flip the X-axis for the mirror effect
+        if depth_frame:
+            if not self.detection_data._is_dark:
+                self.pc.map_to(color_frame)
+            points = self.pc.calculate(depth_frame)
 
-                verts[:, 2] *= -1  # Invert Z-axis for OpenGL's coordinate system
-                verts[:, 1] *= -1  # Invert Y-axis for OpenGL's coordinate system
+            v, t = points.get_vertices(), points.get_texture_coordinates()
+            verts = np.asanyarray(v).view(np.float32).reshape(-1, 3)
+            texcoords = np.asanyarray(t).view(np.float32).reshape(-1, 2)
+            verts[:, 0] *= -1  # Flip the X-axis for the mirror effect
+            verts[:, 2] *= -1  # Invert Z-axis for OpenGL's coordinate system
+            verts[:, 1] *= -1  # Invert Y-axis for OpenGL's coordinate system
 
-                rotation = [self.live_config.rotate_x, self.live_config.rotate_y, self.live_config.rotate_z]
-                translation = [self.live_config.translate_x, self.live_config.translate_y, self.live_config.translate_z]
-                transformed_verts = apply_dynamic_transformation(verts, rotation, translation)
+            rotation = [
+                self.live_config.rotate_x,
+                self.live_config.rotate_y,
+                self.live_config.rotate_z
+            ]
+            translation = [
+                self.live_config.translate_x,
+                self.live_config.translate_y,
+                self.live_config.translate_z
+            ]
+            transformed_verts = apply_dynamic_transformation(verts, rotation, translation)
 
-                # Apply X, Y, and Z-threshold filtering on the transformed points
-                x_min, x_max = self.live_config.x_threshold_min, self.live_config.x_threshold_max
-                y_min, y_max = self.live_config.y_threshold_min, self.live_config.y_threshold_max
-                z_min, z_max = self.live_config.z_threshold_min, self.live_config.z_threshold_max
+            x_min, x_max = self.live_config.x_threshold_min, self.live_config.x_threshold_max
+            y_min, y_max = self.live_config.y_threshold_min, self.live_config.y_threshold_max
+            z_min, z_max = self.live_config.z_threshold_min, self.live_config.z_threshold_max
 
-                # Find valid indices within the specified X, Y, and Z ranges
-                valid_indices = np.where(
-                    (transformed_verts[:, 0] >= x_min) & (transformed_verts[:, 0] <= x_max) &
-                    (transformed_verts[:, 1] >= y_min) & (transformed_verts[:, 1] <= y_max) &
-                    (transformed_verts[:, 2] >= z_min) & (transformed_verts[:, 2] <= z_max)
-                )
-                filtered_verts = transformed_verts[valid_indices]
-                filtered_texcoords = texcoords[valid_indices]
+            valid_indices = np.where(
+                (transformed_verts[:, 0] >= x_min) & (transformed_verts[:, 0] <= x_max) &
+                (transformed_verts[:, 1] >= y_min) & (transformed_verts[:, 1] <= y_max) &
+                (transformed_verts[:, 2] >= z_min) & (transformed_verts[:, 2] <= z_max)
+            )
+            filtered_verts = transformed_verts[valid_indices]
+            filtered_texcoords = texcoords[valid_indices]
 
-                # Process color data for filtered points
-                color_image = np.asanyarray(color_frame.get_data())
-                color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
-                h, w, _ = color_image.shape
-                filtered_texcoords[:, 0] *= w
-                filtered_texcoords[:, 1] *= h
-                filtered_texcoords = filtered_texcoords.astype(int)
-                np.clip(filtered_texcoords[:, 0], 0, w - 1, out=filtered_texcoords[:, 0])
-                np.clip(filtered_texcoords[:, 1], 0, h - 1, out=filtered_texcoords[:, 1])
+            color_image = np.asanyarray(color_frame.get_data())
+            color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+            h, w, _ = color_image.shape
+            filtered_texcoords[:, 0] *= w
+            filtered_texcoords[:, 1] *= h
+            filtered_texcoords = filtered_texcoords.astype(int)
+            np.clip(filtered_texcoords[:, 0], 0, w - 1, out=filtered_texcoords[:, 0])
+            np.clip(filtered_texcoords[:, 1], 0, h - 1, out=filtered_texcoords[:, 1])
 
+            colors = color_image[filtered_texcoords[:, 1], filtered_texcoords[:, 0]]
+            self.vertices = filtered_verts
+            self.colors = colors / 255.0
 
-                colors = color_image[filtered_texcoords[:, 1], filtered_texcoords[:, 0]]
-                self.vertices = filtered_verts  
-                self.colors = colors / 255.0  # Normalize colors
+            self.set_active_movement(depth_frame = depth_frame, rotation = rotation, translation = translation)
+            
+    def set_active_movement(self, depth_frame, rotation, translation):
+        object_boxes = self.detection_data.get_object_boxes()
+        intrinsics = self.rs_manager.get_depth_intrinsics()
+        depth_image = np.asanyarray(depth_frame.get_data())
+        depth_scale = self.rs_manager.get_depth_scale()
+        
+        self.headpoints_transformed = compute_object_points(
+            object_boxes, intrinsics, depth_image, depth_scale, rotation, translation
+        )
+        self.active_movement_id = update_active_movement(
+            self.headpoints_transformed,
+            image_width=848, image_height=480, intrinsics=intrinsics
+        )
+        self.detection_data.set_active_movement_id(self.active_movement_id)
 
-                # Compute and store transformed elements for re-drawing when paused
-                # persons_with_ids = self.detection_data.get_persons_with_ids()
-                # non_person_movement_boxes = self.detection_data.get_non_person_movement_boxes()
-                # person_moving_status = self.detection_data.get_person_moving_status()
-                
-                # intrinsics = self.rs_manager.get_depth_intrinsics()  # Get RealSense intrinsics for depth calculations
-                # depth_image = np.asanyarray(depth_frame.get_data())
-                # depth_scale = self.rs_manager.get_depth_scale()  # Scale for converting depth value to meters
-                # draw_keypoints(persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation)
-                # self.headpoints_transformed = compute_general_head_points(
-                #     persons_with_ids, intrinsics, depth_image, depth_scale, rotation, translation
-                # )
-                # self.movement_points_transformed = compute_movement_points(
-                #     non_person_movement_boxes, intrinsics, depth_image, depth_scale, rotation, translation
-                # )
-                # self.active_movement_id, self.active_movement_type = update_active_movement(
-                #     self.headpoints_transformed, person_moving_status, self.movement_points_transformed,
-                #     image_width=640, image_height=480, intrinsics=intrinsics
-                # )
-
-                # self.detection_data.set_active_movement_id(self.active_movement_id)
-                # self.detection_data.set_active_movement_type(self.active_movement_type)
-
-                object_boxes = self.detection_data.get_object_boxes()
-                intrinsics = self.rs_manager.get_depth_intrinsics()  # Get RealSense intrinsics for depth calculations
-                depth_image = np.asanyarray(depth_frame.get_data())
-                depth_scale = self.rs_manager.get_depth_scale()  # Scale for converting depth value to meters
-                self.headpoints_transformed = compute_object_points(
-                    object_boxes, intrinsics, depth_image, depth_scale, rotation, translation
-                )
-                self.active_movement_id = update_active_movement(
-                    self.headpoints_transformed,
-                    image_width=848, image_height=480, intrinsics=intrinsics
-                )
-
-                self.detection_data.set_active_movement_id(self.active_movement_id)
-                # self.detection_data.set_active_movement_type(self.active_movement_type)
-
-
-        # Always render the stored vertices and colors
+    def _render_scene(self):
         if self.vertices is not None and self.colors is not None:
             glEnableClientState(GL_VERTEX_ARRAY)
             glEnableClientState(GL_COLOR_ARRAY)
@@ -199,16 +177,13 @@ class GLWidget(QGLWidget):
             glDrawArrays(GL_POINTS, 0, len(self.vertices))
             glDisableClientState(GL_VERTEX_ARRAY)
             glDisableClientState(GL_COLOR_ARRAY)
-        if self.headpoints_transformed or self.movement_points_transformed:
-        # Always re-draw stored headpoints, keypoints, and other elements
-            draw_movement_points(self.headpoints_transformed, self.movement_points_transformed, self.active_movement_id, self.active_movement_type)
+
+        if self.headpoints_transformed:
+            draw_movement_points(self.headpoints_transformed, self.active_movement_id, self.active_movement_type)
         if self.live_config.draw_planes:
             draw_vertical_dividers()
             draw_horizontal_dividers()
         self.cube_manager.draw_cubes()
-            
-
-
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

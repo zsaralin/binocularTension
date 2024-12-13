@@ -3,7 +3,6 @@ from select_image import get_image
 from live_config import LiveConfig
 
 # Constants
-STICK_TIME = 3  # Minimum time (seconds) to stick with the current active movement before switching
 
 # Global variables for tracking state
 active_movement_id = None  # ID of the active movement
@@ -15,6 +14,7 @@ potential_new_active_id = None  # ID of the potential new active movement
 def update_active_movement(general_head_points_transformed, image_width, image_height, intrinsics):
     global active_movement_id, active_movement, active_movement_start_time
     global potential_switch_start_time, potential_new_active_id
+    live_config = LiveConfig.get_instance()
     current_time = time.time()
     # Reset active movement if no headpoints are provided
     if not general_head_points_transformed:
@@ -48,7 +48,7 @@ def update_active_movement(general_head_points_transformed, image_width, image_h
                 potential_switch_start_time = current_time
             else:
                 # Check if 'stick_time' has passed
-                if current_time - potential_switch_start_time >= STICK_TIME:
+                if current_time - potential_switch_start_time >= live_config.active_object_stick_time:
                     # Switch to the new movement
                     active_movement_id = potential_new_active_id
                     active_movement = general_head_points_transformed[active_movement_id]

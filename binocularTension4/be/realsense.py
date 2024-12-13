@@ -9,7 +9,6 @@ class RealSenseManager:
         self.pipeline = rs.pipeline()
         config = rs.config()
 
-
         config.enable_stream(rs.stream.color, 848, 480, rs.format.bgr8, 60)
         config.enable_stream(rs.stream.depth, 848, 480, rs.format.z16, 60)
         config.enable_stream(rs.stream.infrared, 1, 848, 480, rs.format.y8, 60)

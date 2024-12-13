@@ -16,7 +16,7 @@ import re  # Import re module for regular expressions
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
-    largest_screen = min(screens, key=lambda screen: screen.size().width() * screen.size().height())
+    largest_screen = max(screens, key=lambda screen: screen.size().width() * screen.size().height())
     return largest_screen
 
 class FullScreenBlinkApp(QWidget):
@@ -129,6 +129,9 @@ class FullScreenBlinkApp(QWidget):
         if self.blink_sleep_manager.sleep_manager.display_off:
             self.blink_sleep_manager.sleep_manager.display_off = False
             self.blink_sleep_manager.sleep_manager.turn_on_display_()
+        if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
+                print("Exiting sleep mode.")
+                self.blink_sleep_manager.sleep_manager.exit_sleep_mode()
         if self.update_in_progress:
             print("Update in progress, ignoring new update.")
             self.update_skip_count+= 1
@@ -265,7 +268,7 @@ class FullScreenBlinkApp(QWidget):
             self.toggle_control_panel()
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folders = ["./eyeballImages/Jade0", "./eyeballImages/Gab0"]
+    image_folders = ["./eyeballImages/Jade", "./eyeballImages/Gab"]
     window = FullScreenBlinkApp(image_folders)
     window.start_server_thread('localhost', 65432)
     sys.exit(app.exec_())

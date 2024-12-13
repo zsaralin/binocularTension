@@ -10,7 +10,7 @@ config.enable_stream(rs.stream.color, 848, 480, rs.format.bgr8, 30)
 pipeline.start(config)
 
 # Set the interval for calculating brightness (30 seconds)
-interval = 5
+interval = 30
 last_check_time = time.time()
 
 try:

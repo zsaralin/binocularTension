@@ -8,15 +8,15 @@ class RGBLegendWidget(QWidget):
     def __init__(self, parent=None):
         super(RGBLegendWidget, self).__init__(parent)
         layout = QVBoxLayout()
-
-        # Add legend items with solid and dotted line representations
-        self.add_legend_item(layout, "Active & Moving", QColor(0, 255, 0), solid=True)   # Green solid line
-        self.add_legend_item(layout, "Active & Stationary", QColor(0, 255, 0), solid=False)  # Green dotted line
-        self.add_legend_item(layout, "Non-Active Moving Object/Person", QColor(255, 0, 0), solid=True)  # Red solid line
-        self.add_legend_item(layout, "Non-Active Stationary Person", QColor(255, 0, 0), solid=False)  # White dotted line
-        self.add_legend_item(layout, "Other Moving", QColor(255, 0, 0), solid=True)  # Red solid line for other moving
-        self.add_legend_item(layout, "Outside Thresholds", QColor(127, 127, 127), solid=True)  # Red solid line for other moving
-
+        self.add_legend_item(layout, "Active & Moving (YOLO)", QColor(255, 0, 0), solid=True)
+        self.add_legend_item(layout, "Active & Stationary (YOLO)", QColor(255, 0, 0), solid=False)
+        self.add_legend_item(layout, "Active & Moving (BG Sub)", QColor(150, 0, 0), solid=True)
+        self.add_legend_item(layout, "Active & Stationary (BG Sub)", QColor(115, 0, 0), solid=False)
+        self.add_legend_item(layout, "Non-Active Moving (YOLO)", QColor(0, 255, 0), solid=True)
+        self.add_legend_item(layout, "Non-Active Stationary (YOLO)", QColor(0, 255, 0), solid=False)
+        self.add_legend_item(layout, "Non-Active Moving (BG Sub)", QColor(0, 150, 0), solid=True)
+        self.add_legend_item(layout, "Non-Active Stationary (BG Sub)", QColor(0, 150, 0), solid=False)
+        self.add_legend_item(layout, "Outside Thresholds", QColor(127, 127, 127), solid=True)
         # Set layout and spacing
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         self.setLayout(layout)

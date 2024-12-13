@@ -26,9 +26,11 @@ class LiveConfig:
         self.draw_planes = True
         self.min_contour_area = 200  # Default for minimum contour area
         self.movement_thres = 2  # Default threshold for person movement
+        self.active_object_stick_time = 3,
+        self.conf_thres = 0.1,
+        self.stationary_timeout = 20,
+        self.roi_filter_dur = 10, 
         self.headpoint_smoothing = 0.5
-        self.tracking_hold_duration = 5
-        self.extended_timeout = 2
         self.point_size = 1
         self.num_divisions = 40
         self.history = 1000  # Background subtractor history

@@ -79,13 +79,14 @@ class SleepManager(QObject):
 
     def exit_sleep_mode(self):
         if self.in_sleep_mode:
-            print("Exiting sleep mode...")
             self.in_sleep_mode = False
+            print("Exiting sleep mode...")
+            self.sleep_timer.stop()  # Stop the current sleep timer to avoid re-triggering
             self.schedule_sleep_timer()
             self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
-        timeout_ms = self.display_off_timeout_hours * 3600 * 1000
+        timeout_ms = self.display_off_timeout_hours# * 3600 * 1000
         self.display_off_timer.start(timeout_ms)
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 
@@ -99,9 +100,12 @@ class SleepManager(QObject):
 
     def turn_on_display_(self):
         print("Turning on display...")
+        self.display_off_timer.stop()  # Stop the display off timer
+        self.sleep_timer.stop()       # Stop the sleep timer
         turn_on_display()
         self.display_off = False
         self.exit_sleep_mode()
+
 
     def update_last_image_time(self):
         self.last_image_time = time.time()

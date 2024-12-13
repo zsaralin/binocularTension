@@ -10,9 +10,8 @@ class PCLegendWidget(QWidget):
         layout = QVBoxLayout()
 
         # Legend items
-        self.add_legend_item(layout, "Active Person Movement", QColor(0, 255, 0))  # Green
-        self.add_legend_item(layout, "Active Object Movement", QColor(0, 180, 0))  # Dark Green
-        self.add_legend_item(layout, "Other Movement/Tracked Person", QColor(255, 0, 0))  # Red
+        self.add_legend_item(layout, "Active Object", QColor(255, 0, 0))  
+        self.add_legend_item(layout, "Non-Active Object", QColor(0, 255, 0))  
 
         # Set layout and spacing
         self.setLayout(layout)

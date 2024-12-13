@@ -6,23 +6,24 @@ from detection_data import DetectionData
 import time
 import cv2  # Import OpenCV for background subtraction
 from live_config import LiveConfig  # Import LiveConfig for dynamic configuration
-logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
+logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
 class ObjectDetector:
     def __init__(self, model_path="./yolo/yolo11n.pt", distance_threshold=100):
         # Initialize YOLO model
         self.model = YOLO(model_path)
-        self.live_config =  LiveConfig.get_instance()
+        self.live_config = LiveConfig.get_instance()
         # Initialize separate Norfair Trackers with increased hit_counter_max
         self.yolo_tracker = Tracker(
             distance_function="euclidean",
             distance_threshold=distance_threshold,
-            hit_counter_max=30
+            hit_counter_max=5
         )
         self.bgsub_tracker = Tracker(
             distance_function="euclidean",
             distance_threshold=distance_threshold,
+        
         )
         self.detection_data = DetectionData()
 
@@ -47,7 +48,7 @@ class ObjectDetector:
         # Initialize movement status dictionary if not already initialized
         if not hasattr(self, 'tracked_objects_movement_status'):
             self.tracked_objects_movement_status = {}
-        
+
         active_movement_id = self.detection_data.active_movement_id
         movement_threshold = self.live_config.movement_thres  # Pixels; adjust based on your application's sensitivity
 
@@ -57,8 +58,8 @@ class ObjectDetector:
             self.active_movement_start_time = None
             self.active_movement_last_seen_time = None
             self.previous_active_movement_id = active_movement_id
-            self.person_missing = False
-            self.person_gone = False
+            # self.person_missing = False
+            # self.person_gone = False
 
         # Mirror the depth image to match the mirrored display image
         depth_image = np.fliplr(depth_image)
@@ -76,9 +77,10 @@ class ObjectDetector:
         # Determine whether to filter detections to ROI
         filter_to_roi = False
         roi_coords = None
+        print(self.person_missing)
         if self.person_missing:
             time_elapsed = time.time() - self.lost_time
-            if time_elapsed < 10 and self.last_active_bb is not None:
+            if time_elapsed < self.live_config.roi_filter_dur and self.last_active_bb is not None:
                 # Only consider detections within ROI
                 filter_to_roi = True
                 x1 = self.last_active_bb['x1']
@@ -110,7 +112,7 @@ class ObjectDetector:
                 conf = box.conf[0].item()  # Confidence
 
                 # Filter by confidence threshold
-                if conf > 0.1:
+                if conf > self.live_config.conf_thres:
                     # Optionally filter detections to ROI
                     if filter_to_roi:
                         if not self._is_within_roi(x1_box, y1_box, x2_box, y2_box, roi_coords):
@@ -126,7 +128,7 @@ class ObjectDetector:
                         Detection(
                             points=center,
                             scores=np.array([conf]),
-                            data={"width": width, "height": height}
+                            data={"width": width, "height": height, "is_yolo": True}
                         )
                     )
                     # Store YOLO bounding box for later use
@@ -138,7 +140,7 @@ class ObjectDetector:
         bgsub_detections = []  # Norfair detections list for background subtraction
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area > 500:  # Increased area threshold to reduce noise
+            if area > self.live_config.min_contour_area:  # Increased area threshold to reduce noise
                 # Get bounding box of the contour
                 x, y, w, h = cv2.boundingRect(contour)
                 x1_bg = x
@@ -150,38 +152,39 @@ class ObjectDetector:
                 if filter_to_roi:
                     if not self._is_within_roi(x1_bg, y1_bg, x2_bg, y2_bg, roi_coords):
                         continue  # Skip detections outside ROI
+                if self.live_config.detect_people and not self.detection_data._is_dark:
 
-                is_near_yolo = False
-                for x1_yolo, y1_yolo, x2_yolo, y2_yolo in yolo_bbs:
-                    # Calculate intersection coordinates
-                    xi1 = max(x1_bg, x1_yolo)
-                    yi1 = max(y1_bg, y1_yolo)
-                    xi2 = min(x2_bg, x2_yolo)
-                    yi2 = min(y2_bg, y2_yolo)
-                    
-                    inter_width = xi2 - xi1
-                    inter_height = yi2 - yi1
+                    is_near_yolo = False
+                    for x1_yolo, y1_yolo, x2_yolo, y2_yolo in yolo_bbs:
+                        # Calculate intersection coordinates
+                        xi1 = max(x1_bg, x1_yolo)
+                        yi1 = max(y1_bg, y1_yolo)
+                        xi2 = min(x2_bg, x2_yolo)
+                        yi2 = min(y2_bg, y2_yolo)
 
-                    if inter_width > 0 and inter_height > 0:  # There is an intersection
-                        inter_area = inter_width * inter_height
-                        bg_area = (x2_bg - x1_bg) * (y2_bg - y1_bg)
-                        yolo_area = (x2_yolo - x1_yolo) * (y2_yolo - y1_yolo)
-                        
-                        # Check overlap ratios
-                        overlap_with_bg = inter_area / bg_area
-                        overlap_with_yolo = inter_area / yolo_area
+                        inter_width = xi2 - xi1
+                        inter_height = yi2 - yi1
 
-                        # Check if bg_bb is fully contained in yolo_bb
-                        is_fully_contained = (
-                            x1_bg >= x1_yolo and y1_bg >= y1_yolo and x2_bg <= x2_yolo and y2_bg <= y2_yolo
-                        )
+                        if inter_width > 0 and inter_height > 0:  # There is an intersection
+                            inter_area = inter_width * inter_height
+                            bg_area = (x2_bg - x1_bg) * (y2_bg - y1_bg)
+                            yolo_area = (x2_yolo - x1_yolo) * (y2_yolo - y1_yolo)
 
-                        # If fully contained or overlaps significantly, consider it near YOLO
-                        if is_fully_contained or overlap_with_bg > 0.1 or overlap_with_yolo > 0.1:
-                            is_near_yolo = True
-                            break
-                if is_near_yolo:
-                    continue  # Skip background subtraction detection if near YOLO detection
+                            # Check overlap ratios
+                            overlap_with_bg = inter_area / bg_area
+                            overlap_with_yolo = inter_area / yolo_area
+
+                            # Check if bg_bb is fully contained in yolo_bb
+                            is_fully_contained = (
+                                x1_bg >= x1_yolo and y1_bg >= y1_yolo and x2_bg <= x2_yolo and y2_bg <= y2_yolo
+                            )
+
+                            # If fully contained or overlaps significantly, consider it near YOLO
+                            if is_fully_contained or overlap_with_bg > 0.1 or overlap_with_yolo > 0.1:
+                                is_near_yolo = True
+                                break
+                    if is_near_yolo:
+                        continue  # Skip background subtraction detection if near YOLO detection
 
                 # Compute center point
                 center = np.array([(x1_bg + x2_bg) / 2, (y1_bg + y2_bg) / 2])
@@ -193,7 +196,7 @@ class ObjectDetector:
                     Detection(
                         points=center,
                         scores=np.array([1.0]),  # Assign a default confidence
-                        data={"width": width, "height": height}
+                        data={"width": width, "height": height, "is_yolo": False}
                     )
                 )
 
@@ -242,7 +245,7 @@ class ObjectDetector:
                             self.tracked_objects_movement_status[obj_id]['stopped_time'] = current_time
                         elif movement_status == 'stationary':
                             stopped_time = self.tracked_objects_movement_status[obj_id]['stopped_time']
-                            if stopped_time is not None and (current_time - stopped_time) > 20:
+                            if stopped_time is not None and (current_time - stopped_time) > self.live_config.stationary_timeout:
                                 # Object has been stationary for more than 20 seconds, mark as 'stopped'
                                 self.tracked_objects_movement_status[obj_id]['movement_status'] = 'stopped'
                 else:
@@ -253,7 +256,7 @@ class ObjectDetector:
                         self.tracked_objects_movement_status[obj_id]['stopped_time'] = current_time
                     elif movement_status == 'stationary':
                         stopped_time = self.tracked_objects_movement_status[obj_id]['stopped_time']
-                        if stopped_time is not None and (current_time - stopped_time) > 20:
+                        if stopped_time is not None and (current_time - stopped_time) > self.live_config.stationary_timeout:
                             # Object has been stationary for more than 20 seconds, mark as 'stopped'
                             self.tracked_objects_movement_status[obj_id]['movement_status'] = 'stopped'
 
@@ -262,46 +265,58 @@ class ObjectDetector:
 
         tracked_bbs = []
         found_active_movement = False
-
+        if self.live_config.detect_people: 
         # Process YOLO tracked objects based on movement status
-        for tracked_object in yolo_tracked_objects:
-            obj_id = tracked_object.id
-            if obj_id in self.tracked_objects_movement_status:
-                movement_status = self.tracked_objects_movement_status[obj_id]['movement_status']
-                if movement_status in ['moving', 'stationary']:
-                    if tracked_object.age > 1:  # Ensure tracker has stabilized
-                        if obj_id == active_movement_id:
-                            found_active_movement = True
-                            # Update active movement timers
-                            if self.active_movement_start_time is None:
-                                self.active_movement_start_time = time.time()
-                            self.active_movement_last_seen_time = time.time()
-                            self.person_missing = False
-                            self.person_gone = False
-                        self._process_tracked_object(tracked_object, depth_image, tracked_bbs)
-                elif movement_status == 'stopped':
-                    # Remove the object from the tracker
-                    tracked_object.hit_counter = 0  # Mark for deletion
+            for tracked_object in yolo_tracked_objects:
+                obj_id = tracked_object.id
+                if obj_id in self.tracked_objects_movement_status:
+                    movement_status = self.tracked_objects_movement_status[obj_id]['movement_status']
+                    is_moving = movement_status == 'moving'
+                    if movement_status in ['moving', 'stationary']:
+                        if tracked_object.age > 1:  # Ensure tracker has stabilized
+                            if obj_id == active_movement_id:
+                                found_active_movement = True
+                                # Update active movement timers
+                                if self.active_movement_start_time is None:
+                                    self.active_movement_start_time = time.time()
+                                self.active_movement_last_seen_time = time.time()
+                                self.person_missing = False
+                                self.person_gone = False
+                            self._process_tracked_object(tracked_object, depth_image, tracked_bbs, is_yolo=True, is_moving=is_moving)
+                    elif movement_status == 'stopped':
+                        # Remove the object from the tracker
+                        tracked_object.hit_counter = 0  # Mark for deletion
+                        
+        if self.live_config.detect_objects: 
+            # Process background subtraction tracked objects as before
+            for tracked_object in bgsub_tracked_objects:
+                if tracked_object.age > 10:  # Only include stable bgsub objects
+                    # For bgsub objects, determine movement status if tracked
+                    obj_id = tracked_object.id
+                    if obj_id in self.tracked_objects_movement_status:
+                        movement_status = self.tracked_objects_movement_status[obj_id]['movement_status']
+                        is_moving = movement_status == 'moving'
+                    else:
+                        # If not tracked by YOLO, assume stationary for bgsub
+                        is_moving = False
 
-        # Process background subtraction tracked objects as before
-        for tracked_object in bgsub_tracked_objects:
-            if tracked_object.age > 10:  # Only include stable bgsub objects
-                if tracked_object.id == active_movement_id:
-                    found_active_movement = True
-                    # Update active movement timers
-                    if self.active_movement_start_time is None:
-                        self.active_movement_start_time = time.time()
-                    self.active_movement_last_seen_time = time.time()
-                    self.person_missing = False
-                    self.person_gone = False
-                self._process_tracked_object(tracked_object, depth_image, tracked_bbs)
+                    if tracked_object.id == active_movement_id:
+                        found_active_movement = True
+                        # Update active movement timers
+                        if self.active_movement_start_time is None:
+                            self.active_movement_start_time = time.time()
+                        self.active_movement_last_seen_time = time.time()
+                        self.person_missing = False
+                        self.person_gone = False
+                    self._process_tracked_object(tracked_object, depth_image, tracked_bbs, is_yolo=False, is_moving=is_moving)
 
         # After processing all tracked_objects
         if not found_active_movement:
             if self.active_movement_start_time is not None and self.active_movement_last_seen_time is not None:
                 active_duration = self.active_movement_last_seen_time - self.active_movement_start_time
-                if active_duration >= 3:
-                    if not self.person_missing and not self.person_gone:
+                print(active_duration)
+                if active_duration >= 0:
+                    if not self.person_missing :
                         # Person just disappeared after being active for at least 3 seconds
                         self.person_missing = True
                         self.lost_time = time.time()
@@ -327,8 +342,7 @@ class ObjectDetector:
 
         return tracked_bbs
 
-
-    def _process_tracked_object(self, tracked_object, depth_image, tracked_bbs):
+    def _process_tracked_object(self, tracked_object, depth_image, tracked_bbs, is_yolo=False, is_moving=False):
         center = np.array(tracked_object.estimate).flatten()  # Ensure 1D array
         x, y = int(center[0]), int(center[1])  # Extract scalar coordinates
 
@@ -342,21 +356,24 @@ class ObjectDetector:
         peak_2d = None
         if depth_region.size > 0:
             # Mask invalid depth values (0) with the maximum value in the valid depth region
-            depth_region_valid = np.where(depth_region == 0, np.max(depth_image), depth_region)
+            max_valid_depth = depth_region.max() if depth_region.max() > 0 else 1
+            depth_region_valid = np.where(depth_region == 0, max_valid_depth, depth_region)
 
             # Find the closest depth point in the region
             min_depth_index = np.unravel_index(np.argmin(depth_region_valid), depth_region.shape)
             y_peak, x_peak = y1 + min_depth_index[0], x1 + min_depth_index[1]
             peak_2d = (x_peak, y_peak)  # 2D peak point in pixel coordinates
 
-        # Append tracked object info with peak
+        # Append tracked object info with peak, movement status, and detection source
         tracked_bbs.append({
             "id": tracked_object.id,
             "x1": x1,
             "y1": y1,
             "x2": x2,
             "y2": y2,
-            "peak": peak_2d  # 2D peak point
+            "peak": peak_2d,  # 2D peak point
+            "is_moving": is_moving,  # Movement status
+            "is_yolo": is_yolo  # Detection source
         })
 
     def _get_bounding_box(self, tracked_object, image_shape):
