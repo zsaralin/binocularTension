@@ -1,8 +1,8 @@
 {
     "min_blink_interval": 3,
     "max_blink_interval": 8,
-    "min_sleep_timeout":  45,
-    "max_sleep_timeout": 45,
+    "min_sleep_timeout": 30,
+    "max_sleep_timeout": 30,
     "min_random_wakeup": 5,
     "max_random_wakeup": 15,
     "blink_speed": 5,
@@ -15,5 +15,5 @@
     "display_off_timeout": 1,
     "stretch_x": 1,
     "stretch_y": 1,
-    "nervousness": 0.4
+    "nervousness": 0.8
 }

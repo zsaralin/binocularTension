@@ -17,7 +17,7 @@ import re  # Import re module for regular expressions
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
-    largest_screen = max(screens, key=lambda screen: screen.size().width() * screen.size().height())
+    largest_screen = max(screens, key=lambda screen: screen.size().width() * screen.size().height()) # should be max
     return largest_screen
 
 class FullScreenBlinkApp(QWidget):
@@ -68,10 +68,9 @@ class FullScreenBlinkApp(QWidget):
         self.update_skip_count = 0 
         def run_subprocess():
             subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\bt\\binocularTension\\binocularTension4\\be')
-
         # Start the subprocess in a separate thread
-        subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
-        subprocess_thread.start()
+        # subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
+        # subprocess_thread.start()
 
         self.showFullScreen()
         self.raise_()
@@ -83,7 +82,6 @@ class FullScreenBlinkApp(QWidget):
             if os.path.exists(folder_path):
                 for filename in os.listdir(folder_path):
                     if filename.endswith(".jpg"):
-                        print(filename)
                         image_path = os.path.join(folder_path, filename)
                         pixmap = QPixmap(image_path)
                         self.image_filenames[folder_key].append(filename)
@@ -139,7 +137,6 @@ class FullScreenBlinkApp(QWidget):
 
     def update_display_image(self, filename):
         if self.blink_sleep_manager.sleep_manager.display_off:
-            self.blink_sleep_manager.sleep_manager.display_off = False
             self.blink_sleep_manager.sleep_manager.turn_on_display_()
         if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
                 print("Exiting sleep mode.")
@@ -159,18 +156,20 @@ class FullScreenBlinkApp(QWidget):
         if current_x is not None and new_x is not None:
             delta = abs(new_x - current_x)
             if delta > 5:
+                self.update_in_progress = True
+
+                # self.update_in_progress = True
                 # 50% chance to simulate blink with position change, 50% to do intermediate steps
-                if random.random() < 0.8:
+                if random.random() < .5:
                     # Simulate blink with position change
                     print("Simulating blink with position change.")
                     # Prevent updates during blink
-                    self.update_in_progress = True
                     try:
                         # Call simulate_blink with the new filename
                         self.blink_sleep_manager.blink_manager.simulate_blink(new_filename=filename)
                         # Finish update after blink duration
                         blink_speed = self.live_config.blink_speed  # Higher is faster
-                        base_delay = 600  # Base delay in ms for the slowest speed
+                        base_delay = 800  # Base delay in ms for the slowest speed
                         total_blink_duration = int((base_delay / blink_speed) * 5)  # 5 steps in simulate_blink
                         QTimer.singleShot(total_blink_duration, lambda: self.finish_update(filename))
                     except Exception as e:
@@ -194,30 +193,28 @@ class FullScreenBlinkApp(QWidget):
                     # Build a list of filenames
                     intermediate_filenames = [f"bt_{x}{rest_of_filename}" for x in intermediate_x_values]
                     # Set update_in_progress to True
-                    self.update_in_progress = True
                     # Schedule the display of intermediate images
                     total_delay = 0
-                    for i, intermediate_filename in enumerate(intermediate_filenames):
-                        delay_between_steps = random.randint(100, 300)  # Random delay between 100ms and 300ms
-                        total_delay += delay_between_steps
-                        QTimer.singleShot(total_delay, lambda fn=intermediate_filename: self.display_image(fn))
-                    # Finally, after the last intermediate image, display the final image
-                    total_delay += random.randint(100, 300)
-                    QTimer.singleShot(total_delay, lambda fn=filename: self.display_image(fn))
-                    QTimer.singleShot(total_delay, lambda fn=filename: self.finish_update(fn))
-                return
-
-        # If no large difference or unable to parse x values, proceed normally
-        if self.current_filename != filename:
-            self.current_filename = filename
-            if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
-                print("Exiting sleep mode.")
-                self.blink_sleep_manager.sleep_manager.exit_sleep_mode()
-            # Update last image time
-            if not self.blink_sleep_manager.blink_manager.is_blinking:
-                self.display_image(filename)
-            self.blink_sleep_manager.update_last_image_time()
-            # Check if in sleep mode
+                    if not self.blink_sleep_manager.blink_manager.is_blinking:
+                        for i, intermediate_filename in enumerate(intermediate_filenames):
+                            delay_between_steps = random.randint(100, 300)  # Random delay between 100ms and 300ms
+                            total_delay += delay_between_steps
+                            QTimer.singleShot(total_delay, lambda fn=intermediate_filename: self.display_image(fn))
+                        # Finally, after the last intermediate image, display the final image
+                        total_delay += random.randint(100, 300)
+                        QTimer.singleShot(total_delay, lambda fn=filename: self.display_image(fn))
+                        QTimer.singleShot(total_delay, lambda fn=filename: self.finish_update(fn))
+            # If no large difference or unable to parse x values, proceed normally
+            elif self.current_filename != filename:
+                self.current_filename = filename
+                if self.blink_sleep_manager.sleep_manager.in_sleep_mode:
+                    print("Exiting sleep mode.")
+                    self.blink_sleep_manager.sleep_manager.exit_sleep_mode()
+                # Update last image time
+                if not self.blink_sleep_manager.blink_manager.is_blinking:
+                    self.display_image(filename)
+                self.blink_sleep_manager.update_last_image_time()
+                # Check if in sleep mode
 
 
 

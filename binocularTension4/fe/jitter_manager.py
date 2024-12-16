@@ -65,6 +65,7 @@ class JitterManager(QObject):
 
         self.current_jitter_level = 0
         self.jitter_active = False  # Initialize the jitter_active flag
+        self.active_timers = []  # Track active timers
 
     def start_jitter_process(self):
         """Start the jitter process with a delay."""
@@ -104,8 +105,21 @@ class JitterManager(QObject):
         self.jitter_active = False  # Stop any active jitter immediately
         self.start_jitter_process()
 
+    def stop_all_jitter(self):
+        """Stop all active jitter effects."""
+        self.jitter_active = False
+        for timer in self.active_timers:
+            timer.stop()  # Stop all timers
+        self.active_timers.clear()  # Clear the list
+        print("All jitter effects stopped.")
+
     def simulate_jitter(self, level=0):
         """Simulate a jitter effect."""
+        # Cancel if jitter is not active
+        if not self.jitter_active:
+            print("Jitter is not active, skipping simulation.")
+            return
+
         # Check nervousness level and decide whether to simulate jitter
         if random.random() > self.live_config.nervousness:
             return
@@ -136,20 +150,24 @@ class JitterManager(QObject):
             for jitter_step in jitter_pattern
         ]
         print('Jitter happening')
+
         # Schedule the display of jittered filenames
         delay = 0
         for jitter_filename in jitter_filenames:
             random_interval = random.randint(self.live_config.min_jitter_speed, self.live_config.max_jitter_speed)
             delay += random_interval
-            QTimer.singleShot(
+            timer = QTimer()
+            timer.singleShot(
                 delay, lambda fn=jitter_filename: self.emit_jittered_filename(fn)
             )
+            self.active_timers.append(timer)  # Track active timers
 
     def emit_jittered_filename(self, filename):
         """Emit the jittered filename if not in sleep mode and jitter is active."""
-        # if not self.jitter_active:
-        #     print("Jitter effect canceled.")
-        #     return
+        if not self.jitter_active:
+            print("Jitter effect canceled.")
+            return
+
         if not self.blink_sleep_manager.sleep_manager.in_sleep_mode and not self.blink_sleep_manager.blink_manager.is_blinking:
             self.main_app.display_image(filename)
         else:

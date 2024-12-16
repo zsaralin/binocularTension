@@ -32,7 +32,7 @@ class BlinkManager(QObject):
 
     def check_inactivity(self):
         """Start checking for inactivity."""
-        self.inactivity_timer.start(1000)  # Check for 1 second of inactivity
+        self.inactivity_timer.start(500)  # Check for 1 second of inactivity
 
     def handle_inactivity(self):
         """Handle 1 second of inactivity by blinking immediately."""
@@ -42,7 +42,7 @@ class BlinkManager(QObject):
             self.check_inactivity()
 
     def simulate_blink(self, new_filename=None):
-        if self.blink_sleep_manager.sleep_manager.in_sleep_mode or self.main_app.debug_mode_manager.debug_mode or self.is_blinking:
+        if self.blink_sleep_manager.sleep_manager.in_sleep_mode or self.main_app.debug_mode_manager.debug_mode or self.is_blinking or (new_filename is None and self.main_app.update_in_progress):
             print("Blinking skipped: in sleep mode, debug mode, or already blinking")
             return
 
@@ -52,7 +52,6 @@ class BlinkManager(QObject):
 
         # Calculate the delay per step (invert blink speed to reduce delay)
         step_delay = int(base_delay / blink_speed)  # e.g., speed 10 -> 60ms, speed 1 -> 600ms
-
         self.is_blinking = True
         self.blink_started.emit()
         current_filename = self.main_app.current_filename
@@ -113,14 +112,14 @@ class BlinkManager(QObject):
 
     def end_blinking(self, original_filename):
         """End the blinking effect and set the next interval."""
-        if not self.blink_sleep_manager.sleep_manager.in_sleep_mode:
-            self.main_app.display_image(original_filename)
-            self.is_blinking = False
-            self.blink_ended.emit()
+        # if not self.blink_sleep_manager.sleep_manager.in_sleep_mode:
+        self.main_app.display_image(original_filename)
+        self.is_blinking = False
+        self.blink_ended.emit()
 
-            # Schedule the next random blink interval
-            random_interval = random.randint(self.min_blink_interval, self.max_blink_interval) * 1000
-            self.blink_timer.start(random_interval)
+        # Schedule the next random blink interval
+        random_interval = random.randint(self.min_blink_interval, self.max_blink_interval) * 1000
+        self.blink_timer.start(random_interval)
 
     def update_last_image_time(self):
         """Update the last image time and reset blink logic."""

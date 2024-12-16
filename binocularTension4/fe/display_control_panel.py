@@ -137,8 +137,8 @@ class DisplayControlPanelWidget(QWidget):
         main_layout = QVBoxLayout(self)
 
         # Add min and max blink interval sliders
-        self.create_slider_group(main_layout, "Min Blink Interval (s)", self.min_blink_interval, 1, 1000, 100)
-        self.create_slider_group(main_layout, "Max Blink Interval (s)", self.max_blink_interval, 1, 1000, 100)
+        self.create_slider_group(main_layout, "Min Blink Interval (s)", self.min_blink_interval, 1, 20, 1)
+        self.create_slider_group(main_layout, "Max Blink Interval (s)", self.max_blink_interval, 1, 20, 1)
 
         # Add sleep timeout sliders
         self.create_slider_group(main_layout, "Min Sleep Timeout (s)", self.min_sleep_timeout, 1, 300, 1)
