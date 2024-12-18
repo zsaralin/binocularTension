@@ -27,7 +27,7 @@ class FullScreenBlinkApp(QWidget):
         super().__init__()
         self.image_folders = {  # Store folders with labels
             "jade": image_folders[0],
-            # "gab": image_folders[1],
+            "gab": image_folders[1],
         }
         self.current_folder = "jade"  # Start with "jade" folder
         self.label = QLabel(self)
@@ -69,8 +69,8 @@ class FullScreenBlinkApp(QWidget):
         def run_subprocess():
             subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\bt\\binocularTension\\binocularTension4\\be')
         # Start the subprocess in a separate thread
-        # subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
-        # subprocess_thread.start()
+        subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
+        subprocess_thread.start()
 
         self.showFullScreen()
         self.raise_()
@@ -83,6 +83,7 @@ class FullScreenBlinkApp(QWidget):
                 for filename in os.listdir(folder_path):
                     if filename.endswith(".jpg"):
                         image_path = os.path.join(folder_path, filename)
+                        print(image_path)
                         pixmap = QPixmap(image_path)
                         self.image_filenames[folder_key].append(filename)
                         self.images[folder_key][filename] = pixmap
@@ -278,7 +279,10 @@ class FullScreenBlinkApp(QWidget):
             
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folders = ["./eyeballImages/Jade"]#, "./eyeballImages/Gab"]
+    image_folders = ["./eyeballImages/Jade", "./eyeballImages/Gab"]
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
 
     # Initialize and start the PyQt application
     window = FullScreenBlinkApp(image_folders)
