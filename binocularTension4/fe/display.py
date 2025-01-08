@@ -33,7 +33,7 @@ class FullScreenBlinkApp(QWidget):
         self.label = QLabel(self)
         self.filename_label = QLabel(self)
         self.filename_label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-        self.filename_label.setStyleSheet("font-size: 1gpx; color: white; background-color: rgba(0, 0, 0, 0.5); padding: 5px;")
+        self.filename_label.setStyleSheet("font-size: 1gpx; color:  rgba(0, 0, 0, 0); background-color: rgba(0, 0, 0, 0); padding: 5px;")
         self.filename_label.setWordWrap(True)
         self.debug_mode_manager = DebugModeManager(self)
         self.setCursor(Qt.BlankCursor)
@@ -69,8 +69,8 @@ class FullScreenBlinkApp(QWidget):
         def run_subprocess():
             subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\bt\\binocularTension\\binocularTension4\\be')
         # Start the subprocess in a separate thread
-        subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
-        subprocess_thread.start()
+        # subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
+        # subprocess_thread.start()
 
         self.showFullScreen()
         self.raise_()

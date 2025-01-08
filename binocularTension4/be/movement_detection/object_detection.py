@@ -314,7 +314,7 @@ class ObjectDetector:
             if self.active_movement_start_time is not None and self.active_movement_last_seen_time is not None:
                 active_duration = self.active_movement_last_seen_time - self.active_movement_start_time
                 if active_duration >= 0:
-                    if not self.person_missing :
+                    if not self.person_missing:
                         # Person just disappeared after being active for at least 3 seconds
                         self.person_missing = True
                         self.lost_time = time.time()
@@ -330,6 +330,20 @@ class ObjectDetector:
                 self.person_gone = False
                 self.active_movement_start_time = None
                 self.active_movement_last_seen_time = None
+
+            # Reset tracker IDs if person is considered gone
+            if self.person_gone:
+                self.yolo_tracker = Tracker(
+                    distance_function="euclidean",
+                    distance_threshold=self.yolo_tracker.distance_threshold,
+                    hit_counter_max=5
+                )
+                self.bgsub_tracker = Tracker(
+                    distance_function="euclidean",
+                    distance_threshold=self.bgsub_tracker.distance_threshold
+                )
+                self.tracked_objects_movement_status.clear()  # Clear all movement status
+
         else:
             # Update last_active_bb
             for tracked_object in yolo_tracked_objects + bgsub_tracked_objects:
