@@ -117,7 +117,8 @@ class DisplayControlPanelWidget(QWidget):
                 "nervousness": 0.8,
                 "selected_folder": "jade",
                 "auto_switch_enabled": False,
-                "auto_switch_interval": 0.5
+                "auto_switch_interval_low": 0.5,
+                "auto_switch_interval_high": 0.5
             }
 
     def save_config(self):
@@ -148,7 +149,7 @@ class DisplayControlPanelWidget(QWidget):
             "smooth_y": self.smooth_y[0],
             "rotate": self.rotate[0],
             "nervousness": self.nervousness[0],
-            **version_info  # Merge selected_folder, auto_switch_enabled, auto_switch_interval
+            **version_info  # Merge selected_folder, auto_switch_enabled, auto_switch_interval_low, auto_switch_interval_high
         }
 
         with open('display_config.json', 'w') as f:
