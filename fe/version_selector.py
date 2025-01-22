@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QTimer
+import random
 
 class VersionSelector:
     """
@@ -16,19 +17,21 @@ class VersionSelector:
         self.switch_timer.timeout.connect(self.toggle_version)
 
         self.auto_switch_enabled = False  # Internal state
-        self.auto_switch_interval = 0.5  # Default interval in minutes
+        self.auto_switch_interval_low = 0.5  # Default low end of interval in minutes
+        self.auto_switch_interval_high = 0.5  # Default high end of interval in minutes
 
         # UI elements (set up during setup_ui; reset on close)
         self.jade_radio = None
         self.gab_radio = None
         self.switch_radio = None
-        self.timer_spinbox = None
+        self.timer_spinbox1 = None
+        self.timer_spinbox2 = None
 
     def setup_ui(self, layout):
         """
         Sets up the version selection UI components in the control panel.
         """
-        from PyQt5.QtWidgets import QLabel, QHBoxLayout, QRadioButton, QButtonGroup, QDoubleSpinBox
+        from PyQt5.QtWidgets import QLabel, QHBoxLayout, QRadioButton, QButtonGroup, QDoubleSpinBox, QVBoxLayout
 
         # Version selection header
         version_label = QLabel("Version Selection ([ ] keys)")
@@ -54,23 +57,43 @@ class VersionSelector:
         button_group.addButton(self.gab_radio)
         button_group.addButton(self.switch_radio)
 
-        # Timer settings widget
-        self.timer_spinbox = QDoubleSpinBox()
-        self.timer_spinbox.setRange(0.1, 60.0)
-        self.timer_spinbox.setValue(self.auto_switch_interval)
-        self.timer_spinbox.setSingleStep(0.1)
-        self.timer_spinbox.setDecimals(2)
-        self.timer_spinbox.valueChanged.connect(self.update_switch_interval)
+        # Add version layout to main layout
+        layout.addLayout(version_layout)
 
-        version_layout.addWidget(self.timer_spinbox)
+        # Timer settings layout
+        timer_layout = QHBoxLayout()
+        timer_label1 = QLabel("Switch eyes between")
+        timer_label2 = QLabel("and")
+        timer_label3 = QLabel("minutes")
+
+        self.timer_spinbox1 = QDoubleSpinBox()
+        self.timer_spinbox1.setRange(0.1, 60.0)
+        self.timer_spinbox1.setValue(self.auto_switch_interval_low)
+        self.timer_spinbox1.setSingleStep(0.1)
+        self.timer_spinbox1.setDecimals(2)
+        self.timer_spinbox1.valueChanged.connect(self.update_switch_interval_low)
+
+        self.timer_spinbox2 = QDoubleSpinBox()
+        self.timer_spinbox2.setRange(0.1, 60.0)
+        self.timer_spinbox2.setValue(self.auto_switch_interval_high)
+        self.timer_spinbox2.setSingleStep(0.1)
+        self.timer_spinbox2.setDecimals(2)
+        self.timer_spinbox2.valueChanged.connect(self.update_switch_interval_high)
+
+        # Add label and spinbox to the timer layout
+        timer_layout.addWidget(timer_label1)
+        timer_layout.addWidget(self.timer_spinbox1)
+        timer_layout.addWidget(timer_label2)
+        timer_layout.addWidget(self.timer_spinbox2)
+        timer_layout.addWidget(timer_label3)
+
+        # Add timer layout to main layout
+        layout.addLayout(timer_layout)
 
         # Connect UI signals to actions
         self.jade_radio.toggled.connect(self.handle_manual_selection)
         self.gab_radio.toggled.connect(self.handle_manual_selection)
         self.switch_radio.toggled.connect(self.handle_auto_switch)
-
-        # Add version layout to main layout
-        layout.addLayout(version_layout)
 
     def handle_manual_selection(self):
         """
@@ -99,9 +122,12 @@ class VersionSelector:
 
     def start_auto_switch(self):
         """
-        Starts auto-switching with the current interval.
+        Starts auto-switching with a random value of the current interval.
         """
-        interval_ms = int(self.auto_switch_interval * 60 * 1000)
+        self.stop_auto_switch() # Stop any existing timer to ensure only one is running
+        interval_min = self.auto_switch_interval_low
+        interval_max = self.auto_switch_interval_high
+        interval_ms = int(random.uniform(interval_min, interval_max) * 60 * 1000)
         self.switch_timer.setInterval(interval_ms)
         self.switch_timer.start()
         self.auto_switch_enabled = True
@@ -127,6 +153,8 @@ class VersionSelector:
         else:
             self.switch_folder("jade")
 
+        self.start_auto_switch()
+
     def switch_folder(self, folder_name):
         """
         Switch to the specified folder (Jade or Gab).
@@ -134,11 +162,19 @@ class VersionSelector:
         self.current_folder = folder_name
         self.main_display.switch_image_folder(folder_name)
 
-    def update_switch_interval(self, value):
+    def update_switch_interval_low(self, value):
         """
-        Updates the auto-switch interval (in minutes).
+        Updates the low value for auto-switch interval (in minutes).
         """
-        self.auto_switch_interval = value
+        self.auto_switch_interval_low = min(value, self.auto_switch_interval_high)
+        if self.auto_switch_enabled:
+            self.start_auto_switch()
+
+    def update_switch_interval_high(self, value):
+        """
+        Updates the high value for auto-switch interval (in minutes).
+        """
+        self.auto_switch_interval_high = max(value, self.auto_switch_interval_low)
         if self.auto_switch_enabled:
             self.start_auto_switch()
 
@@ -147,7 +183,8 @@ class VersionSelector:
         Loads the saved configuration state.
         """
         self.auto_switch_enabled = config.get("auto_switch_enabled", False)
-        self.auto_switch_interval = config.get("auto_switch_interval", 0.5)
+        self.auto_switch_interval_low = config.get("auto_switch_interval_low", 0.5)
+        self.auto_switch_interval_high = config.get("auto_switch_interval_high", 0.5)
         self.current_folder = config.get("selected_folder", "jade")
 
         if self.auto_switch_enabled:
@@ -162,5 +199,6 @@ class VersionSelector:
         return {
             "selected_folder": self.current_folder,
             "auto_switch_enabled": self.auto_switch_enabled,
-            "auto_switch_interval": self.auto_switch_interval,
+            "auto_switch_interval_low": self.auto_switch_interval_low,
+            "auto_switch_interval_high": self.auto_switch_interval_high,
         }
