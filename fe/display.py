@@ -333,12 +333,12 @@ class FullScreenBlinkApp(QWidget):
             self.close()
         elif event.key() == Qt.Key_BracketRight:
             self.switch_image_folder("male")
-            if self.control_panel:
-                self.control_panel.update_version_selection("male")
+            if self.version_selector:
+                self.version_selector.switch_folder("male")
         elif event.key() == Qt.Key_BracketLeft:
-            self.switch_image_folder("male")
-            if self.control_panel:
-                self.control_panel.update_version_selection("male")
+            self.switch_image_folder("female")
+            if self.version_selector:
+                self.version_selector.switch_folder("female")
         else:
             super().keyPressEvent(event)
 
