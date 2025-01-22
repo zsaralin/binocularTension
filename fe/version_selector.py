@@ -22,13 +22,14 @@ class VersionSelector:
         self.jade_radio = None
         self.gab_radio = None
         self.switch_radio = None
-        self.timer_spinbox = None
+        self.timer_spinbox1 = None
+        self.timer_spinbox2 = None
 
     def setup_ui(self, layout):
         """
         Sets up the version selection UI components in the control panel.
         """
-        from PyQt5.QtWidgets import QLabel, QHBoxLayout, QRadioButton, QButtonGroup, QDoubleSpinBox
+        from PyQt5.QtWidgets import QLabel, QHBoxLayout, QRadioButton, QButtonGroup, QDoubleSpinBox, QVBoxLayout
 
         # Version selection header
         version_label = QLabel("Version Selection ([ ] keys)")
@@ -54,23 +55,42 @@ class VersionSelector:
         button_group.addButton(self.gab_radio)
         button_group.addButton(self.switch_radio)
 
-        # Timer settings widget
-        self.timer_spinbox = QDoubleSpinBox()
-        self.timer_spinbox.setRange(0.1, 60.0)
-        self.timer_spinbox.setValue(self.auto_switch_interval)
-        self.timer_spinbox.setSingleStep(0.1)
-        self.timer_spinbox.setDecimals(2)
-        self.timer_spinbox.valueChanged.connect(self.update_switch_interval)
+        # Add version layout to main layout
+        layout.addLayout(version_layout)
 
-        version_layout.addWidget(self.timer_spinbox)
+        # Timer settings layout
+        timer_layout = QHBoxLayout()
+        timer_label1 = QLabel("Switch eyes between")
+        timer_label2 = QLabel("and")
+        timer_label3 = QLabel("minutes")
+
+        self.timer_spinbox1 = QDoubleSpinBox()
+        self.timer_spinbox1.setRange(0.1, 60.0)
+        self.timer_spinbox1.setValue(self.auto_switch_interval)
+        self.timer_spinbox1.setSingleStep(0.1)
+        self.timer_spinbox1.setDecimals(2)
+        self.timer_spinbox1.valueChanged.connect(self.update_switch_interval)
+
+        self.timer_spinbox2 = QDoubleSpinBox()
+        self.timer_spinbox2.setRange(0.1, 60.0)
+        self.timer_spinbox2.setValue(self.auto_switch_interval)
+        self.timer_spinbox2.setSingleStep(0.1)
+        self.timer_spinbox2.setDecimals(2)
+
+        # Add label and spinbox to the timer layout
+        timer_layout.addWidget(timer_label1)
+        timer_layout.addWidget(self.timer_spinbox1)
+        timer_layout.addWidget(timer_label2)
+        timer_layout.addWidget(self.timer_spinbox2)
+        timer_layout.addWidget(timer_label3)
+
+        # Add timer layout to main layout
+        layout.addLayout(timer_layout)
 
         # Connect UI signals to actions
         self.jade_radio.toggled.connect(self.handle_manual_selection)
         self.gab_radio.toggled.connect(self.handle_manual_selection)
         self.switch_radio.toggled.connect(self.handle_auto_switch)
-
-        # Add version layout to main layout
-        layout.addLayout(version_layout)
 
     def handle_manual_selection(self):
         """
