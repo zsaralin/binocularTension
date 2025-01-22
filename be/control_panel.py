@@ -62,7 +62,7 @@ class ControlPanelWidget(QWidget):
         else:
             # Defaults for config parameters
             return {
-                "version": "Jade",
+                "version": "Female",
                 "rotate_x": 0,
                 "rotate_y": 0,
                 "rotate_z": 0,
@@ -158,23 +158,23 @@ class ControlPanelWidget(QWidget):
     # Create a horizontal layout for the radio buttons
         version_layout = QHBoxLayout()
 
-    # Create radio buttons for "Jade" and "Gab"
-        jade_radio = QRadioButton("Jade")
-        gab_radio = QRadioButton("Gab")
+    # Create radio buttons for "Female" and "Male"
+        female_radio = QRadioButton("Female")
+        male_radio = QRadioButton("Male")
         
         # Add the radio buttons to the horizontal layout
-        version_layout.addWidget(jade_radio)
-        version_layout.addWidget(gab_radio)
+        version_layout.addWidget(female_radio)
+        version_layout.addWidget(male_radio)
 
         # Add the radio buttons to a button group
         version_button_group = QButtonGroup(self)
-        version_button_group.addButton(jade_radio)
-        version_button_group.addButton(gab_radio)
+        version_button_group.addButton(female_radio)
+        version_button_group.addButton(male_radio)
 
-        # Set "Jade" as the default selected option
-        jade_radio.setChecked(True)
-        jade_radio.toggled.connect(lambda checked: switch_folder_on_server("jade") if checked else None)
-        gab_radio.toggled.connect(lambda checked: switch_folder_on_server("gab") if checked else None)
+        # Set "Female" as the default selected option
+        female_radio.setChecked(True)
+        female_radio.toggled.connect(lambda checked: switch_folder_on_server("female") if checked else None)
+        male_radio.toggled.connect(lambda checked: switch_folder_on_server("male") if checked else None)
 
         # Add the horizontal layout to the main content layout
         content_layout.addLayout(version_layout)

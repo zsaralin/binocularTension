@@ -10,10 +10,10 @@ def apply_config_to_server():
             config = json.load(f)
 
         # Extract version and determine target folder
-        version = config.get("version", "jade").lower()
-        if version not in ["jade", "gab"]:
-            print(f"Invalid folder version in config: {version}. Defaulting to 'jade'.")
-            version = "jade"
+        version = config.get("version", "female").lower()
+        if version not in ["female", "male"]:
+            print(f"Invalid folder version in config: {version}. Defaulting to 'female'.")
+            version = "female"
 
         switch_folder_on_server(version)
 

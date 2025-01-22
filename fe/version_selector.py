@@ -8,7 +8,7 @@ class VersionSelector:
 
     def __init__(self, main_display):
         self.main_display = main_display
-        self.current_folder = "jade"  # Default starting folder
+        self.current_folder = "female"  # Default starting folder
 
         # Shared timer for auto-switching
         if not hasattr(VersionSelector, "_active_timer"):
@@ -21,8 +21,8 @@ class VersionSelector:
         self.auto_switch_interval_high = 0.5  # Default high end of interval in minutes
 
         # UI elements (set up during setup_ui; reset on close)
-        self.jade_radio = None
-        self.gab_radio = None
+        self.female_radio = None
+        self.male_radio = None
         self.switch_radio = None
         self.timer_spinbox1 = None
         self.timer_spinbox2 = None
@@ -42,19 +42,19 @@ class VersionSelector:
         version_layout = QHBoxLayout()
 
         # Create and configure radio buttons
-        self.jade_radio = QRadioButton("Jade [")
-        self.gab_radio = QRadioButton("Gab ]")
+        self.female_radio = QRadioButton("Female [")
+        self.male_radio = QRadioButton("Male ]")
         self.switch_radio = QRadioButton("Auto Switch")
 
         # Add buttons to the layout
-        version_layout.addWidget(self.jade_radio)
-        version_layout.addWidget(self.gab_radio)
+        version_layout.addWidget(self.female_radio)
+        version_layout.addWidget(self.male_radio)
         version_layout.addWidget(self.switch_radio)
 
         # Button group for mutual exclusivity
         button_group = QButtonGroup()
-        button_group.addButton(self.jade_radio)
-        button_group.addButton(self.gab_radio)
+        button_group.addButton(self.female_radio)
+        button_group.addButton(self.male_radio)
         button_group.addButton(self.switch_radio)
 
         # Add version layout to main layout
@@ -91,23 +91,23 @@ class VersionSelector:
         layout.addLayout(timer_layout)
 
         # Connect UI signals to actions
-        self.jade_radio.toggled.connect(self.handle_manual_selection)
-        self.gab_radio.toggled.connect(self.handle_manual_selection)
+        self.female_radio.toggled.connect(self.handle_manual_selection)
+        self.male_radio.toggled.connect(self.handle_manual_selection)
         self.switch_radio.toggled.connect(self.handle_auto_switch)
 
     def handle_manual_selection(self):
         """
-        Handles when the user selects Jade or Gab manually.
+        Handles when the user selects Female or Male manually.
         """
         if self.switch_radio and self.switch_radio.isChecked():
             return  # Ignore if auto-switch is enabled
 
         self.stop_auto_switch()
 
-        if self.jade_radio and self.jade_radio.isChecked():
-            self.switch_folder("jade")
-        elif self.gab_radio and self.gab_radio.isChecked():
-            self.switch_folder("gab")
+        if self.female_radio and self.female_radio.isChecked():
+            self.switch_folder("female")
+        elif self.male_radio and self.male_radio.isChecked():
+            self.switch_folder("male")
 
     def handle_auto_switch(self, checked):
         """
@@ -141,23 +141,23 @@ class VersionSelector:
 
     def toggle_version(self):
         """
-        Toggles between Jade and Gab versions.
+        Toggles between Female and Male versions.
         Called by the auto-switch timer.
         """
         # Do not rely on UI elements like self.switch_radio here
         if not self.auto_switch_enabled:
             return
 
-        if self.current_folder == "jade":
-            self.switch_folder("gab")
+        if self.current_folder == "female":
+            self.switch_folder("male")
         else:
-            self.switch_folder("jade")
+            self.switch_folder("female")
 
         self.start_auto_switch()
 
     def switch_folder(self, folder_name):
         """
-        Switch to the specified folder (Jade or Gab).
+        Switch to the specified folder (Female or Male).
         """
         self.current_folder = folder_name
         self.main_display.switch_image_folder(folder_name)
@@ -185,7 +185,7 @@ class VersionSelector:
         self.auto_switch_enabled = config.get("auto_switch_enabled", False)
         self.auto_switch_interval_low = config.get("auto_switch_interval_low", 0.5)
         self.auto_switch_interval_high = config.get("auto_switch_interval_high", 0.5)
-        self.current_folder = config.get("selected_folder", "jade")
+        self.current_folder = config.get("selected_folder", "female")
 
         if self.auto_switch_enabled:
             self.start_auto_switch()

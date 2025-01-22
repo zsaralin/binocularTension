@@ -12,7 +12,7 @@ from display_live_config import DisplayLiveConfig
 class DisplayControlPanelWidget(QWidget):
     """
     Control panel for tweaking display settings (blink, sleep, etc.)
-    and choosing between Jade/Gab or auto‐switch, via VersionSelector.
+    and choosing between Female/Male or auto‐switch, via VersionSelector.
     """
 
     # Optional signals for other parts of your application
@@ -27,7 +27,7 @@ class DisplayControlPanelWidget(QWidget):
     def __init__(self, display, main_display, version_selector, parent=None):
         """
         :param display: Some object that handles "update_display_mode(...)" etc.
-        :param main_display: The main display widget that actually shows Jade/Gab frames.
+        :param main_display: The main display widget that actually shows Female/Male frames.
         """
         super().__init__(parent)
 
@@ -115,7 +115,7 @@ class DisplayControlPanelWidget(QWidget):
                 "smooth_y": 10,
                 "rotate": 0,
                 "nervousness": 0.8,
-                "selected_folder": "jade",
+                "selected_folder": "female",
                 "auto_switch_enabled": False,
                 "auto_switch_interval_low": 0.5,
                 "auto_switch_interval_high": 0.5
@@ -124,7 +124,7 @@ class DisplayControlPanelWidget(QWidget):
     def save_config(self):
         """
         Merge local slider/checkbox settings with the VersionSelector’s
-        Jade/Gab/Auto‐Switch info, and write out to 'display_config.json'.
+        Female/Male/Auto‐Switch info, and write out to 'display_config.json'.
         """
         # Let VersionSelector output its portion of the config
         version_info = self.version_selector.save_state_to_dict()
@@ -187,7 +187,7 @@ class DisplayControlPanelWidget(QWidget):
     def init_ui(self):
         """
         Build the entire control panel UI:
-          1. Add version selector (Auto/Gab/Jade) from VersionSelector
+          1. Add version selector (Auto/Male/Female) from VersionSelector
           2. Add blink/sleep/jitter sliders
           3. Add debug mode and advanced checkboxes
           4. Add a save button
