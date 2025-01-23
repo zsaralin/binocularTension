@@ -16,6 +16,9 @@ import random
 import subprocess
 import re  # Import re module for regular expressions
 
+from version_control_panel import VersionControlPanel 
+from settings_control_panel import SettingsControlPanel
+
 from version_selector import VersionSelector
 
 def get_largest_display():
@@ -327,20 +330,48 @@ class FullScreenBlinkApp(QWidget):
             
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_G:
-            self.toggle_control_panel()
-        elif event.key() == Qt.Key_Escape:
-            self.close()
-        elif event.key() == Qt.Key_BracketRight:
-            self.switch_image_folder("male")
-            if self.version_selector:
-                self.version_selector.switch_folder("male")
-        elif event.key() == Qt.Key_BracketLeft:
-            self.switch_image_folder("female")
-            if self.version_selector:
-                self.version_selector.switch_folder("female")
+        key = event.key()
+        match key:
+            case Qt.Key_G:
+                self.toggle_settings_panel()
+            case Qt.Key_C:
+                self.toggle_version_panel()
+            case Qt.Key_Escape:
+                self.close()
+            case Qt.Key_BracketRight:
+                self.switch_image_folder("male")
+                if self.version_selector:
+                    self.version_selector.switch_folder("male")
+            case Qt.Key_BracketLeft:
+                self.switch_image_folder("female")
+                if self.version_selector:
+                    self.version_selector.switch_folder("female")
+            case _:
+                super().keyPressEvent(event)
+
+    def toggle_version_panel(self):
+        """Toggle version selection panel triggered by 'c' key."""
+        if not hasattr(self, 'version_panel') or self.version_panel is None:
+            self.version_panel = VersionControlPanel(self, self.version_selector)
+            self.version_panel.show()
         else:
-            super().keyPressEvent(event)
+            self.version_panel.close()
+            self.version_panel = None
+
+    def toggle_settings_panel(self):
+        """Toggle settings panel triggered by 'g' key."""
+        if not hasattr(self, 'settings_panel') or self.settings_panel is None:
+            self.settings_panel = SettingsControlPanel(
+                display=self.debug_mode_manager,
+                main_display=self,
+                version_selector=self.version_selector
+            )
+            self.settings_panel.show()
+            self.setCursor(Qt.ArrowCursor)
+        else:
+            self.setCursor(Qt.BlankCursor) 
+            self.settings_panel.close()
+            self.settings_panel = None
 
             
 

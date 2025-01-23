@@ -197,7 +197,7 @@ class DisplayControlPanelWidget(QWidget):
         #
         # 1) VersionSelector UI
         #
-        self.version_selector.setup_ui(main_layout)
+        # self.version_selector.setup_ui(main_layout)
         main_layout.addSpacing(10)
 
         #
