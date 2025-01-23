@@ -32,11 +32,13 @@ class FullScreenBlinkApp(QWidget):
 
     def __init__(self, image_folders):
         super().__init__()
-        self.image_folders = {  # Store folders with labels
-            "female": image_folders[0],
-            "male": image_folders[1],
-        }
+
         self.current_folder = "female"  # Start with "female" folder
+        self.current_filename = "bt_20_cso.jpg"
+        self.update_in_progress = False  # Flag to prevent updates during transitions
+        self.live_config = DisplayLiveConfig.get_instance() # Load live config values
+
+        
         self.label = QLabel(self)
         self.filename_label = QLabel(self)
         self.filename_label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
@@ -45,11 +47,18 @@ class FullScreenBlinkApp(QWidget):
         self.debug_mode_manager = DebugModeManager(self)
         self.setCursor(Qt.BlankCursor)
 
-        self.current_filename = "bt_20_cso.jpg"
-        self.update_in_progress = False  # Flag to prevent updates during transitions
+        
+        self.image_folders = {  # Store folders with labels
+            "female": image_folders[0],
+            "male": image_folders[1],
+        }
+        # Load images
+        self.image_filenames = {"female": [], "male": []}
+        self.images = {"female": {}, "male": {}}
+        self.load_images()
 
-        # Load live config values
-        self.live_config = DisplayLiveConfig.get_instance()
+        
+        
         self.blink_sleep_manager = BlinkSleepManager(self)
         self.blink_sleep_manager.sleep_manager.turn_on_display_()
 
@@ -65,12 +74,6 @@ class FullScreenBlinkApp(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint)
 
 
-        # Load images
-        self.image_filenames = {"female": [], "male": []}
-        self.images = {"female": {}, "male": {}}
-        self.load_images()
-
-        # Initialize BlinkSleepManager
 
         # Display initial image and set up signal for server updates
         self.display_image(self.current_filename)
