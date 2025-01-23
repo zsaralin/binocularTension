@@ -354,9 +354,11 @@ class FullScreenBlinkApp(QWidget):
         if not hasattr(self, 'version_panel') or self.version_panel is None:
             self.version_panel = VersionControlPanel(self, self.version_selector)
             self.version_panel.show()
+            self.setCursor(Qt.ArrowCursor)
         else:
             self.version_panel.close()
             self.version_panel = None
+            self.setCursor(Qt.BlankCursor)
 
     def toggle_settings_panel(self):
         """Toggle settings panel triggered by 'g' key."""

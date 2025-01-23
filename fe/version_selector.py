@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QTimer
 import random
+import json
 
 class VersionSelector:
     """
@@ -26,6 +27,8 @@ class VersionSelector:
         self.switch_radio = None
         self.timer_spinbox1 = None
         self.timer_spinbox2 = None
+
+        self.load_config()
 
     def setup_ui(self, layout):
         """
@@ -202,3 +205,28 @@ class VersionSelector:
             "auto_switch_interval_low": self.auto_switch_interval_low,
             "auto_switch_interval_high": self.auto_switch_interval_high,
         }
+
+    def save_config(self):
+        """Save version selection config to file."""
+        config_data = self.save_state_to_dict()
+        
+        # Merge with existing config if present
+        try:
+            with open('display_config.json', 'r') as f:
+                existing_config = json.load(f)
+                existing_config.update(config_data)
+                config_data = existing_config
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+            
+        with open('display_config.json', 'w') as f:
+            json.dump(config_data, f, indent=4)
+
+    def load_config(self):
+        """Load version selection config from file."""
+        try:
+            with open('display_config.json', 'r') as f:
+                config = json.load(f)
+                self.load_state_from_dict(config)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass

@@ -31,6 +31,8 @@ class VersionControlPanel(QWidget):
         
     def closeEvent(self, event):
         """Handle panel close event."""
+        self.version_selector.save_config()
+        
         self.main_display.version_panel = None
         self.main_display.setCursor(Qt.BlankCursor)
         self.main_display.activateWindow()
