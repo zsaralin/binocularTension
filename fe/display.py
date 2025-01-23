@@ -16,6 +16,9 @@ import random
 import subprocess
 import re  # Import re module for regular expressions
 
+from version_control_panel import VersionControlPanel 
+from settings_control_panel import SettingsControlPanel
+
 from version_selector import VersionSelector
 
 def get_largest_display():
@@ -29,11 +32,13 @@ class FullScreenBlinkApp(QWidget):
 
     def __init__(self, image_folders):
         super().__init__()
-        self.image_folders = {  # Store folders with labels
-            "female": image_folders[0],
-            "male": image_folders[1],
-        }
+
         self.current_folder = "female"  # Start with "female" folder
+        self.current_filename = "bt_20_cso.jpg"
+        self.update_in_progress = False  # Flag to prevent updates during transitions
+        self.live_config = DisplayLiveConfig.get_instance() # Load live config values
+
+        
         self.label = QLabel(self)
         self.filename_label = QLabel(self)
         self.filename_label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
@@ -42,11 +47,18 @@ class FullScreenBlinkApp(QWidget):
         self.debug_mode_manager = DebugModeManager(self)
         self.setCursor(Qt.BlankCursor)
 
-        self.current_filename = "bt_20_cso.jpg"
-        self.update_in_progress = False  # Flag to prevent updates during transitions
+        
+        self.image_folders = {  # Store folders with labels
+            "female": image_folders[0],
+            "male": image_folders[1],
+        }
+        # Load images
+        self.image_filenames = {"female": [], "male": []}
+        self.images = {"female": {}, "male": {}}
+        self.load_images()
 
-        # Load live config values
-        self.live_config = DisplayLiveConfig.get_instance()
+        
+        
         self.blink_sleep_manager = BlinkSleepManager(self)
         self.blink_sleep_manager.sleep_manager.turn_on_display_()
 
@@ -62,12 +74,6 @@ class FullScreenBlinkApp(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint)
 
 
-        # Load images
-        self.image_filenames = {"female": [], "male": []}
-        self.images = {"female": {}, "male": {}}
-        self.load_images()
-
-        # Initialize BlinkSleepManager
 
         # Display initial image and set up signal for server updates
         self.display_image(self.current_filename)
@@ -327,20 +333,50 @@ class FullScreenBlinkApp(QWidget):
             
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_G:
-            self.toggle_control_panel()
-        elif event.key() == Qt.Key_Escape:
-            self.close()
-        elif event.key() == Qt.Key_BracketRight:
-            self.switch_image_folder("male")
-            if self.version_selector:
-                self.version_selector.switch_folder("male")
-        elif event.key() == Qt.Key_BracketLeft:
-            self.switch_image_folder("female")
-            if self.version_selector:
-                self.version_selector.switch_folder("female")
+        key = event.key()
+        match key:
+            case Qt.Key_G:
+                self.toggle_settings_panel()
+            case Qt.Key_C:
+                self.toggle_version_panel()
+            case Qt.Key_Escape:
+                self.close()
+            case Qt.Key_BracketRight:
+                self.switch_image_folder("male")
+                if self.version_selector:
+                    self.version_selector.switch_folder("male")
+            case Qt.Key_BracketLeft:
+                self.switch_image_folder("female")
+                if self.version_selector:
+                    self.version_selector.switch_folder("female")
+            case _:
+                super().keyPressEvent(event)
+
+    def toggle_version_panel(self):
+        """Toggle version selection panel triggered by 'c' key."""
+        if not hasattr(self, 'version_panel') or self.version_panel is None:
+            self.version_panel = VersionControlPanel(self, self.version_selector)
+            self.version_panel.show()
+            self.setCursor(Qt.ArrowCursor)
         else:
-            super().keyPressEvent(event)
+            self.version_panel.close()
+            self.version_panel = None
+            self.setCursor(Qt.BlankCursor)
+
+    def toggle_settings_panel(self):
+        """Toggle settings panel triggered by 'g' key."""
+        if not hasattr(self, 'settings_panel') or self.settings_panel is None:
+            self.settings_panel = SettingsControlPanel(
+                display=self.debug_mode_manager,
+                main_display=self,
+                version_selector=self.version_selector
+            )
+            self.settings_panel.show()
+            self.setCursor(Qt.ArrowCursor)
+        else:
+            self.setCursor(Qt.BlankCursor) 
+            self.settings_panel.close()
+            self.settings_panel = None
 
             
 
