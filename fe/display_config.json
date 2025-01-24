@@ -17,9 +17,9 @@
     "stretch_y": 1.0,
     "smooth_y": 10.0,
     "rotate": 0.0,
-    "nervousness": 0.8,
-    "selected_folder": "female",
-    "auto_switch_enabled": false,
-    "auto_switch_interval_low": 0.5,
-    "auto_switch_interval_high": 0.5
+    "nervousness": 0.9,
+    "selected_folder": "male",
+    "auto_switch_enabled": true,
+    "auto_switch_interval_low": 1.0,
+    "auto_switch_interval_high": 3.0
 }

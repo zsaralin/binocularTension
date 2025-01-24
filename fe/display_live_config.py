@@ -81,10 +81,28 @@ class DisplayLiveConfig:
             "min_jitter_interval": self.min_jitter_interval,
             "max_jitter_interval": self.max_jitter_interval,
             "min_jitter_speed": self.min_jitter_speed,
-            "max_jitter_speed": self.max_jitter_speed
+            "max_jitter_speed": self.max_jitter_speed,
         }
-        with open(self.config_file, 'w') as file:
-            json.dump(config_data, file, indent=4)
+
+        # Try to preserve existing version selector settings
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, 'r') as f:
+                    existing_config = json.load(f)
+                    # Preserve version selector settings
+                    for key in ['selected_folder', 'auto_switch_enabled', 
+                            'auto_switch_interval_low', 'auto_switch_interval_high']:
+                        if key in existing_config:
+                            config_data[key] = existing_config[key]
+        except Exception as e:
+            print(f"Warning: Could not preserve existing version settings: {e}")
+
+        try:
+            with open(self.config_file, 'w') as f:
+                json.dump(config_data, f, indent=4)
+            print("Configuration saved successfully")
+        except Exception as e:
+            print(f"Error saving configuration: {e}")
 
     def update_duration(self, min_sleep_timeout=None, max_sleep_timeout=None, min_blink_interval=None,
                         max_blink_interval=None, min_random_wakeup=None, max_random_wakeup=None,

@@ -1,18 +1,15 @@
 """
-Socket listener service for handling frontend settings updates.
-Maintains a persistent UDP socket connection throughout application lifetime.
+Socket listener service for handling frontend settings updates and commands.
 """
 
 import socket
 import json
 from PyQt5.QtCore import QThread, pyqtSignal
+from display_live_config import DisplayLiveConfig
 
 class SocketListenerService(QThread):
     """
     Persistent socket listener service for the application.
-    
-    This service maintains a UDP socket connection and emits signals
-    when frontend settings updates are received.
     
     Attributes:
         value_received (pyqtSignal): Signal emitted when new values arrive
@@ -28,6 +25,7 @@ class SocketListenerService(QThread):
         print("Initializing SocketListenerService...")
         self.port = port
         self.running = True
+        self.live_config = DisplayLiveConfig.get_instance()
         self._init_socket()
 
     def _init_socket(self):
@@ -48,12 +46,30 @@ class SocketListenerService(QThread):
             try:
                 data, _ = self.socket.recvfrom(1024)
                 message = json.loads(data.decode())
-                self.value_received.emit(
-                    message["variable"],
-                    message["value"]
-                )
+                
+                # Check if this is a save command
+                if 'command' in message and message['command'] == 'save':
+                    print("Save command received, saving frontend config...")
+                    self.live_config.save_config()
+                    continue
+                    
+                # Otherwise handle normal value updates
+                if 'variable' in message and 'value' in message:
+                    try:
+                        value = float(message['value'])
+                        self.value_received.emit(
+                            message["variable"],
+                            value
+                        )
+                    except (ValueError, TypeError) as e:
+                        print(f"Error processing value {message['value']}: {e}")
+                else:
+                    print(f"Invalid message format: {message}")
+                    
             except socket.timeout:
                 continue
+            except json.JSONDecodeError as e:
+                print(f"Error decoding message: {e}")
             except Exception as e:
                 print(f"Error receiving data: {e}")
                 
