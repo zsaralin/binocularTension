@@ -39,13 +39,33 @@ class SleepManager(QObject):
         self.schedule_sleep_timer()
 
     def schedule_sleep_timer(self):
-        sleep_interval = random.randint(self.min_sleep_timeout, self.max_sleep_timeout)
-        self.sleep_timer.start(sleep_interval)
+        """Schedule next sleep timer with random interval."""
+        if self.max_sleep_timeout < self.min_sleep_timeout:
+            print(f"Warning: max sleep timeout ({self.max_sleep_timeout}ms) is less than min ({self.min_sleep_timeout}ms)")
+            # Use min as fallback to prevent errors
+            sleep_interval = int(self.min_sleep_timeout)  # Ensure integer
+        else:
+            # Convert both values to integers for randint
+            min_ms = int(self.min_sleep_timeout)
+            max_ms = int(self.max_sleep_timeout)
+            sleep_interval = random.randint(min_ms, max_ms)
+        
+        self.sleep_timer.start(sleep_interval)  # sleep_interval is now guaranteed to be int
 
     def schedule_random_wakeup_timer(self):
+        """Schedule random wakeup timer with proper validation and integer conversion."""
         if self.in_sleep_mode:
-            wakeup_interval = random.randint(self.min_random_wakeup, self.max_random_wakeup)
+            if self.max_random_wakeup < self.min_random_wakeup:
+                print(f"Warning: max wakeup interval ({self.max_random_wakeup}ms) is less than min ({self.min_random_wakeup}ms)")
+                wakeup_interval = int(self.min_random_wakeup)
+            else:
+                # Convert both values to integers for randint
+                min_ms = int(self.min_random_wakeup)
+                max_ms = int(self.max_random_wakeup)
+                wakeup_interval = random.randint(min_ms, max_ms)
+            
             self.random_wakeup_timer.start(wakeup_interval)
+
     def random_wakeup(self):
         if self.app_instance.debug_mode_manager.debug_mode or self.random_wakeup.in_wakeup or not self.in_sleep_mode:
             return
@@ -117,12 +137,23 @@ class SleepManager(QObject):
         self.schedule_sleep_timer()
 
     def on_sleep_timeout_changed(self):
-        self.min_sleep_timeout = self.live_config.min_sleep_timeout * 1000
-        self.max_sleep_timeout = self.live_config.max_sleep_timeout * 1000
+        """
+        Update sleep timeouts when settings change.
+        Converts from seconds in live_config to milliseconds for internal use.
+        """
+        # Convert to milliseconds and ensure integer values
+        self.min_sleep_timeout = int(self.live_config.min_sleep_timeout * 1000)
+        self.max_sleep_timeout = int(self.live_config.max_sleep_timeout * 1000)
         self.schedule_sleep_timer()
 
     def on_random_wakeup_changed(self):
-        self.min_random_wakeup = self.live_config.min_random_wakeup * 1000 
-        self.max_random_wakeup = self.live_config.max_random_wakeup * 1000 
+        """
+        Update random wakeup intervals when settings change.
+        Converts from seconds in live_config to milliseconds for internal use.
+        """
+        # Convert to milliseconds and ensure integer values
+        self.min_random_wakeup = int(self.live_config.min_random_wakeup * 1000)
+        self.max_random_wakeup = int(self.live_config.max_random_wakeup * 1000)
+        
         if self.in_sleep_mode:
             self.schedule_random_wakeup_timer()
