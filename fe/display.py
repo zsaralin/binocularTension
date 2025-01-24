@@ -21,6 +21,8 @@ from settings_control_panel import SettingsControlPanel
 
 from version_selector import VersionSelector
 
+from socket_listener_service import SocketListenerService
+
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
@@ -97,9 +99,15 @@ class FullScreenBlinkApp(QWidget):
         self.toggle_control_panel()
 
         self.selector = VersionSelector(self)
+
+        self.socket_service = SocketListenerService()
+        self.socket_service.value_received.connect(self.handle_frontend_update)
+        self.socket_service.start()
         
 
-    
+    def handle_frontend_update(self, variable_name: str, value: float):
+        """Handle frontend settings updates."""
+        print(f"Frontend update received: {variable_name} = {value}")
 
 
     def load_images(self):
