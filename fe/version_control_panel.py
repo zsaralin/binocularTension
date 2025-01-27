@@ -22,30 +22,40 @@ class VersionControlPanel(QWidget):
         layout.addWidget(preset_label)
         
         preset_layout = QHBoxLayout()
-        
-        home_button = QPushButton("Home")
-        home_button.clicked.connect(self.set_home_preset)
-        
+
         fair_button = QPushButton("Fair")
         fair_button.clicked.connect(self.set_fair_preset)
         
-        preset_layout.addWidget(home_button)
+        home_button = QPushButton("Home")
+        home_button.clicked.connect(self.set_home_preset)
+
+        museum_button = QPushButton("Museum")
+        museum_button.clicked.connect(self.set_museum_preset)
+        
         preset_layout.addWidget(fair_button)
+        preset_layout.addWidget(museum_button)
+        preset_layout.addWidget(home_button)
         
         layout.addLayout(preset_layout)
         self.setLayout(layout)
 
     def set_home_preset(self):
-        self.version_selector.update_switch_interval_low(10)
-        self.version_selector.update_switch_interval_high(30)
-        self.version_selector.timer_spinbox1.setValue(10)
-        self.version_selector.timer_spinbox2.setValue(30)
+        self.version_selector.update_switch_interval_low(120)
+        self.version_selector.update_switch_interval_high(300)
+        self.version_selector.timer_spinbox1.setValue(120)
+        self.version_selector.timer_spinbox2.setValue(300)
+
+    def set_museum_preset(self):
+        self.version_selector.update_switch_interval_low(1)
+        self.version_selector.update_switch_interval_high(5)
+        self.version_selector.timer_spinbox1.setValue(1)
+        self.version_selector.timer_spinbox2.setValue(5)
 
     def set_fair_preset(self):
-        self.version_selector.update_switch_interval_low(1)
-        self.version_selector.update_switch_interval_high(3)
-        self.version_selector.timer_spinbox1.setValue(1)
-        self.version_selector.timer_spinbox2.setValue(3)
+        self.version_selector.update_switch_interval_low(0.5)
+        self.version_selector.update_switch_interval_high(1)
+        self.version_selector.timer_spinbox1.setValue(0.5)
+        self.version_selector.timer_spinbox2.setValue(1)
 
     def closeEvent(self, event):
         self.version_selector.save_config()
