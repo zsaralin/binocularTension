@@ -1,10 +1,11 @@
 """
 Frontend controls tab with settings management and initialization from config.
+Provides a scrollable interface for numerous control settings.
 """
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QSlider, QLineEdit, QSpacerItem, QSizePolicy,
-    QPushButton, QMessageBox
+    QPushButton, QMessageBox, QScrollArea
 )
 from PyQt5.QtCore import Qt, QTimer
 import socket
@@ -14,7 +15,10 @@ import os
 from slider_group import SliderGroup
 
 class FrontendSliderGroup(SliderGroup):
-    """Frontend slider with reliable value broadcasting."""
+    """
+    Frontend slider with reliable value broadcasting.
+    Extends base SliderGroup to add network broadcasting capability.
+    """
     
     def __init__(self, variable_name: str, label_text: str, initial_value: float,
                  min_val: float, max_val: float, step: float, 
@@ -89,6 +93,7 @@ class FrontendSliderGroup(SliderGroup):
 class FrontendControlsTab(QWidget):
     """
     Frontend controls tab with configuration management.
+    Provides a scrollable interface for numerous slider controls.
     
     Attributes:
         sliders (dict): Collection of slider widgets indexed by variable name
@@ -98,156 +103,28 @@ class FrontendControlsTab(QWidget):
         super().__init__(parent)
         self.sliders = {}
         self.init_ui()
-        self.load_settings()  # Load settings after UI is initialized
+        self.load_settings()
 
     def init_ui(self):
-        """Initialize the UI components."""
-        layout = QVBoxLayout()
+        """Initialize the UI components with scrolling support."""
+        # Main layout for the tab
+        main_layout = QVBoxLayout(self)
 
-        # Add slider groups with default values
-        # These will be updated from config after creation
-        self.add_slider_group(
-            layout, "nervousness",
-            "Nervousness", 0.8,  # Default value
-            0.0, 1.0, 0.1
-        )
+        # Create scroll area and its widget
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         
-
-        label = QLabel("Blink Settings")
-        label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(label)
-
-        # Min blink interval
-        self.add_slider_group(
-            layout, "min_blink_interval",
-            "Min Blink Interval (s)", 3.0,
-            1.0, 20.0, 0.1
-        )
-
-        # Max blink interval
-        self.add_slider_group(
-            layout, "max_blink_interval",
-            "Max Blink Interval (s)", 8.0,
-            1.0, 20.0, 0.1
-        )
-
-        # Blink speed
-        self.add_slider_group(
-            layout, "blink_speed",
-            "Blink Speed", 5.0,
-            1.0, 10.0, 1.0
-        )
-
-
-        label = QLabel("Jitter Settings") 
-        label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(label)
-
-        # Basic jitter controls
-        self.add_slider_group(
-            layout, "jitter_start_delay",
-            "Initial Delay (s)", 0.5,
-            0.1, 5.0, 0.1
-        )
-
-        self.add_slider_group(
-            layout, "large_jitter_start_delay",
-            "Large Pattern Delay (s)", 60.0,
-            1.0, 300.0, 1.0
-        )
-
-        # Jitter timing
-        self.add_slider_group(
-            layout, "min_jitter_interval",
-            "Min Interval (s)", 3.0,
-            0.1, 10.0, 0.1
-        )
-
-        self.add_slider_group(
-            layout, "max_jitter_interval",
-            "Max Interval (s)", 6.0,
-            0.1, 20.0, 0.1
-        )
-
-        # Jitter speed
-        self.add_slider_group(
-            layout, "min_jitter_speed",
-            "Min Speed (ms)", 500,
-            100, 1000, 10
-        )
-
-        self.add_slider_group(
-            layout, "max_jitter_speed",
-            "Max Speed (ms)", 800,
-            100, 2000, 10
-        )
-
-        label = QLabel("Sleep Settings")
-        label.setStyleSheet("font-weight: bold;") 
-        layout.addWidget(label)
-
-        # Basic sleep timeouts
-        self.add_slider_group(
-            layout, "min_sleep_timeout",
-            "Min Sleep Timeout (s)", 10.0,
-            1.0, 300.0, 1.0
-        )
-
-        self.add_slider_group(
-            layout, "max_sleep_timeout",
-            "Max Sleep Timeout (s)", 12.0,
-            1.0, 300.0, 1.0
-        )
-
-        # Random wakeup settings
-        self.add_slider_group(
-            layout, "min_random_wakeup",
-            "Min Wakeup Interval (s)", 35.0,
-            1.0, 300.0, 1.0
-        )
-
-        self.add_slider_group(
-            layout, "max_random_wakeup", 
-            "Max Wakeup Interval (s)", 65.0,
-            1.0, 300.0, 1.0
-        )
-
-        # Display timeout
-        self.add_slider_group(
-            layout, "display_off_timeout",
-            "Display Off Timeout (h)", 2.0,
-            0.1, 24.0, 0.1
-        )
-
-
-        label = QLabel("Display Settings")
-        label.setStyleSheet("font-weight: bold;")
-        layout.addWidget(label)
-
-        self.add_slider_group(
-            layout, "stretch_x",
-            "Horizontal Stretch", 1.0,
-            1.0, 1.5, 0.01
-        )
-
-        self.add_slider_group(
-            layout, "stretch_y",
-            "Vertical Stretch", 1.0,
-            1.0, 1.5, 0.01
-        )
-
-        # Image smoothing and rotation
-        self.add_slider_group(
-            layout, "smooth_y",
-            "Y-Movement Smoothing", 10.0,
-            0.0, 100.0, 1.0
-        )
-
-        self.add_slider_group(
-            layout, "rotate",
-            "Rotation (degrees)", 0.0,
-            -5.0, 5.0, 0.1
-        )
+        # Create content widget to hold all controls
+        content_widget = QWidget()
+        self.layout = QVBoxLayout(content_widget)
+        
+        # Add all the slider groups
+        self.add_nervousness_section()
+        self.add_blink_section()
+        self.add_jitter_section()
+        self.add_sleep_section()
+        self.add_display_section()
 
         # Add save button with feedback
         save_layout = QHBoxLayout()
@@ -256,33 +133,124 @@ class FrontendControlsTab(QWidget):
         self.save_status = QLabel("")
         save_layout.addWidget(self.save_button)
         save_layout.addWidget(self.save_status)
-        layout.addLayout(save_layout)
+        self.layout.addLayout(save_layout)
 
-        # Add vertical spacer
-        layout.addItem(
+        # Add spacing at the bottom
+        self.layout.addItem(
             QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
         )
 
-        self.setLayout(layout)
+        # Set the scroll area's widget and add to main layout
+        scroll.setWidget(content_widget)
+        main_layout.addWidget(scroll)
 
-    def load_settings(self):
-        """Load settings from config file and update sliders."""
-        try:
-            if os.path.exists('../fe/display_config.json'):
-                with open('../fe/display_config.json', 'r') as f:
-                    config = json.load(f)
-                    
-                # Update each slider with its saved value
-                for var_name, slider in self.sliders.items():
-                    if var_name in config:
-                        slider.set_value_without_broadcast(config[var_name])
-                print("Settings loaded from config")
-            else:
-                print("No config file found, using defaults")
-        except Exception as e:
-            print(f"Error loading settings: {e}")
+    def add_section_header(self, text):
+        """Add a section header with consistent styling."""
+        label = QLabel(text)
+        label.setStyleSheet("font-weight: bold;")
+        self.layout.addWidget(label)
 
-    def add_slider_group(self, layout, variable_name, label_text,
+    def add_nervousness_section(self):
+        """Add nervousness control section."""
+        self.add_section_header("Nervousness")
+        self.add_slider_group(
+            "nervousness", "Nervousness", 0.8, 0.0, 1.0, 0.1
+        )
+
+    def add_blink_section(self):
+        """Add blink settings section."""
+        self.add_section_header("Blink Settings")
+        
+        self.add_slider_group(
+            "min_blink_interval", "Min Blink Interval (s)", 3.0,
+            1.0, 20.0, 0.1
+        )
+        self.add_slider_group(
+            "max_blink_interval", "Max Blink Interval (s)", 8.0,
+            1.0, 20.0, 0.1
+        )
+        self.add_slider_group(
+            "blink_speed", "Blink Speed", 5.0,
+            1.0, 10.0, 1.0
+        )
+
+    def add_jitter_section(self):
+        """Add jitter settings section."""
+        self.add_section_header("Jitter Settings")
+        
+        # Basic jitter controls
+        self.add_slider_group(
+            "jitter_start_delay", "Initial Delay (s)", 0.5,
+            0.1, 5.0, 0.1
+        )
+        self.add_slider_group(
+            "large_jitter_start_delay", "Large Pattern Delay (s)", 60.0,
+            1.0, 300.0, 1.0
+        )
+        self.add_slider_group(
+            "min_jitter_interval", "Min Interval (s)", 3.0,
+            0.1, 10.0, 0.1
+        )
+        self.add_slider_group(
+            "max_jitter_interval", "Max Interval (s)", 6.0,
+            0.1, 20.0, 0.1
+        )
+        self.add_slider_group(
+            "min_jitter_speed", "Min Speed (ms)", 500,
+            100, 1000, 10
+        )
+        self.add_slider_group(
+            "max_jitter_speed", "Max Speed (ms)", 800,
+            100, 2000, 10
+        )
+
+    def add_sleep_section(self):
+        """Add sleep settings section."""
+        self.add_section_header("Sleep Settings")
+        
+        self.add_slider_group(
+            "min_sleep_timeout", "Min Sleep Timeout (s)", 10.0,
+            1.0, 300.0, 1.0
+        )
+        self.add_slider_group(
+            "max_sleep_timeout", "Max Sleep Timeout (s)", 12.0,
+            1.0, 300.0, 1.0
+        )
+        self.add_slider_group(
+            "min_random_wakeup", "Min Wakeup Interval (s)", 35.0,
+            1.0, 300.0, 1.0
+        )
+        self.add_slider_group(
+            "max_random_wakeup", "Max Wakeup Interval (s)", 65.0,
+            1.0, 300.0, 1.0
+        )
+        self.add_slider_group(
+            "display_off_timeout", "Display Off Timeout (h)", 2.0,
+            0.1, 24.0, 0.1
+        )
+
+    def add_display_section(self):
+        """Add display settings section."""
+        self.add_section_header("Display Settings")
+        
+        self.add_slider_group(
+            "stretch_x", "Horizontal Stretch", 1.0,
+            1.0, 1.5, 0.01
+        )
+        self.add_slider_group(
+            "stretch_y", "Vertical Stretch", 1.0,
+            1.0, 1.5, 0.01
+        )
+        self.add_slider_group(
+            "smooth_y", "Y-Movement Smoothing", 10.0,
+            0.0, 100.0, 1.0
+        )
+        self.add_slider_group(
+            "rotate", "Rotation (degrees)", 0.0,
+            -5.0, 5.0, 0.1
+        )
+
+    def add_slider_group(self, variable_name, label_text,
                         initial_value, min_val, max_val, step):
         """
         Add a new slider group to the layout.
@@ -305,8 +273,25 @@ class FrontendControlsTab(QWidget):
             step=step,
             parent=self
         )
-        layout.addWidget(group)
+        self.layout.addWidget(group)
         self.sliders[variable_name] = group
+
+    def load_settings(self):
+        """Load settings from config file and update sliders."""
+        try:
+            if os.path.exists('../fe/display_config.json'):
+                with open('../fe/display_config.json', 'r') as f:
+                    config = json.load(f)
+                    
+                # Update each slider with its saved value
+                for var_name, slider in self.sliders.items():
+                    if var_name in config:
+                        slider.set_value_without_broadcast(config[var_name])
+                print("Settings loaded from config")
+            else:
+                print("No config file found, using defaults")
+        except Exception as e:
+            print(f"Error loading settings: {e}")
 
     def save_frontend_config(self):
         """Send save command to socket listener."""
