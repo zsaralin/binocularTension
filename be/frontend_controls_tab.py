@@ -130,8 +130,11 @@ class FrontendControlsTab(QWidget):
         save_layout = QHBoxLayout()
         self.save_button = QPushButton("Save Frontend Config")
         self.save_button.clicked.connect(self.save_frontend_config)
+        self.restore_button = QPushButton("Restore to Defaults")
+        self.restore_button.clicked.connect(self.restore_default_settings)
         self.save_status = QLabel("")
         save_layout.addWidget(self.save_button)
+        save_layout.addWidget(self.restore_button)
         save_layout.addWidget(self.save_status)
         self.layout.addLayout(save_layout)
 
@@ -250,6 +253,7 @@ class FrontendControlsTab(QWidget):
             -5.0, 5.0, 0.1
         )
 
+
     def add_slider_group(self, variable_name, label_text,
                         initial_value, min_val, max_val, step):
         """
@@ -276,6 +280,7 @@ class FrontendControlsTab(QWidget):
         self.layout.addWidget(group)
         self.sliders[variable_name] = group
 
+
     def load_settings(self):
         """Load settings from config file and update sliders."""
         try:
@@ -292,6 +297,7 @@ class FrontendControlsTab(QWidget):
                 print("No config file found, using defaults")
         except Exception as e:
             print(f"Error loading settings: {e}")
+
 
     def save_frontend_config(self):
         """Send save command to socket listener."""
@@ -312,5 +318,48 @@ class FrontendControlsTab(QWidget):
         except Exception as e:
             print(f"Error sending save command: {e}")
             self.save_status.setText("Save Failed!")
+            self.save_status.setStyleSheet("color: red")
+            QTimer.singleShot(3000, lambda: self.save_status.setText(""))
+
+
+    def restore_default_settings(self):
+        """
+        Load and apply settings from default_display_config.json.
+        Updates UI sliders and broadcasts new values to frontend.
+        """
+        try:
+            # Load default settings
+            with open('../fe/default_display_config.json', 'r') as f:
+                defaults = json.load(f)
+                
+            # Update each slider with default value and broadcast
+            for var_name, slider in self.sliders.items():
+                if var_name in defaults:
+                    # Update slider UI
+                    slider.set_value(defaults[var_name])
+                    # Ensure value is broadcast
+                    slider.broadcast_value(defaults[var_name])
+                    
+            # Show success message
+            self.save_status.setText("Defaults Restored!")
+            self.save_status.setStyleSheet("color: green")
+            QTimer.singleShot(3000, lambda: self.save_status.setText(""))
+            
+            # Trigger save to persist changes
+            self.save_frontend_config()
+            
+        except FileNotFoundError:
+            print("Default config file not found")
+            self.save_status.setText("Default Config Not Found!")
+            self.save_status.setStyleSheet("color: red")
+            QTimer.singleShot(3000, lambda: self.save_status.setText(""))
+        except json.JSONDecodeError as e:
+            print(f"Error parsing default config: {e}")
+            self.save_status.setText("Invalid Default Config!")
+            self.save_status.setStyleSheet("color: red")
+            QTimer.singleShot(3000, lambda: self.save_status.setText(""))
+        except Exception as e:
+            print(f"Unexpected error restoring defaults: {e}")
+            self.save_status.setText("Restore Failed!")
             self.save_status.setStyleSheet("color: red")
             QTimer.singleShot(3000, lambda: self.save_status.setText(""))

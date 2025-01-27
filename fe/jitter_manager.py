@@ -86,8 +86,8 @@ class JitterManager(QObject):
             self.simulate_jitter(level=self.current_jitter_level)
         
         jitter_interval = random.randint(
-            self.live_config.min_jitter_interval * 1000,
-            self.live_config.max_jitter_interval * 1000
+            int(self.live_config.min_jitter_interval * 1000),
+            int(self.live_config.max_jitter_interval * 1000)
         )
         self.jitter_loop_timer.start(jitter_interval)
 
