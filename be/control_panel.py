@@ -1,15 +1,20 @@
 import json
 import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox, QRadioButton, QButtonGroup, QTabWidget
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox, QRadioButton, QButtonGroup, QTabWidget, QShortcut
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QKeySequence
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread
 from cube_utils.cube_edit_dialog import CubeEditDialog
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
 from version import switch_folder_on_server
 
 from frontend_controls_tab import FrontendControlsTab
+from pynput import keyboard
+
+class KeySignalEmitter(QObject):
+    key_pressed = pyqtSignal(str)
 
 class ControlPanelWidget(QWidget):
     def __init__(self, parent=None):
@@ -56,6 +61,75 @@ class ControlPanelWidget(QWidget):
         # Set up the scrollable layout and UI elements
         self.init_ui()
         self.sync_with_live_config()
+        self.window_front = False
+
+        self.init_global_key_listener()
+
+    def init_global_key_listener(self):
+        # Create signal emitter and thread for the listener
+        self.key_emitter = KeySignalEmitter()
+        self.key_emitter.key_pressed.connect(self.handle_global_key)
+
+        # Start the listener in a separate thread to avoid blocking the GUI
+        self.listener_thread = QThread()
+        self.listener_thread.start()
+
+        def start_listener():
+            with keyboard.Listener(on_press=self.on_key_press) as listener:
+                listener.join()
+
+        # Move the listener to the thread
+        self.listener_thread.run = start_listener
+        self.listener_thread.start()
+
+    def on_key_press(self, key):
+        # Emit the key to the main thread via signals
+        try:
+            if key.char == 'g':
+                self.key_emitter.key_pressed.emit('g')
+
+        except AttributeError:
+            pass
+
+    def handle_global_key(self, key):
+        # Handle key in the main GUI thread
+        if key == 'g':
+            # self.bring_to_front()
+            self.toggle_window()
+
+    def toggle_window(self):
+        window = self.window()
+        
+        if not self.window_front:
+            self.bring_to_front()
+            
+        else:
+            self.send_to_back()
+        self.window_front = not self.window_front
+
+        
+
+    def bring_to_front(self):
+        """Brings the window to the front and unminimizes it if necessary."""
+        print("Bringing window to front.")
+        window = self.window()
+        if window.isMinimized():
+            window.showNormal()
+        window.activateWindow()
+        window.raise_()
+        window.setWindowState(window.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+
+    def send_to_back(self):
+        """Sends the window to the back and minimizes it if necessary."""
+        print("Sending window to back.")
+        window = self.window()
+        window.setWindowState(window.windowState() | Qt.WindowMinimized)
+
+    def closeEvent(self, event):
+        # Clean up the listener thread
+        self.listener_thread.quit()
+        self.listener_thread.wait()
+        super().closeEvent(event)
 
     def load_config(self):
         if os.path.exists('config.json'):
@@ -157,34 +231,6 @@ class ControlPanelWidget(QWidget):
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
 
-        # Version selection (radio buttons)
-    #     version_label = QLabel("Select Version")
-    #     version_label.setStyleSheet("font-weight: bold;")
-    #     content_layout.addWidget(version_label)
-
-    # # Create a horizontal layout for the radio buttons
-    #     version_layout = QHBoxLayout()
-
-    # # Create radio buttons for "Female" and "Male"
-    #     female_radio = QRadioButton("Female")
-    #     male_radio = QRadioButton("Male")
-        
-    #     # Add the radio buttons to the horizontal layout
-    #     version_layout.addWidget(female_radio)
-    #     version_layout.addWidget(male_radio)
-
-    #     # Add the radio buttons to a button group
-    #     version_button_group = QButtonGroup(self)
-    #     version_button_group.addButton(female_radio)
-    #     version_button_group.addButton(male_radio)
-
-    #     # Set "Female" as the default selected option
-    #     female_radio.setChecked(True)
-    #     female_radio.toggled.connect(lambda checked: switch_folder_on_server("female") if checked else None)
-    #     male_radio.toggled.connect(lambda checked: switch_folder_on_server("male") if checked else None)
-
-        # Add the horizontal layout to the main content layout
-        # content_layout.addLayout(version_layout)
         # Rotation sliders
         label = QLabel("Rotation")
         label.setStyleSheet("font-weight: bold;")
