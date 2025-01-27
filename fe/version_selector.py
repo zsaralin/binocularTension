@@ -70,14 +70,14 @@ class VersionSelector:
         timer_label3 = QLabel("minutes")
 
         self.timer_spinbox1 = QDoubleSpinBox()
-        self.timer_spinbox1.setRange(0.1, 60.0)
+        self.timer_spinbox1.setRange(0.1, 1440.0)
         self.timer_spinbox1.setValue(self.auto_switch_interval_low)
         self.timer_spinbox1.setSingleStep(0.1)
         self.timer_spinbox1.setDecimals(2)
         self.timer_spinbox1.valueChanged.connect(self.update_switch_interval_low)
 
         self.timer_spinbox2 = QDoubleSpinBox()
-        self.timer_spinbox2.setRange(0.1, 60.0)
+        self.timer_spinbox2.setRange(0.1, 1440.0)
         self.timer_spinbox2.setValue(self.auto_switch_interval_high)
         self.timer_spinbox2.setSingleStep(0.1)
         self.timer_spinbox2.setDecimals(2)
