@@ -1,13 +1,15 @@
 import json
 import os
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox, QRadioButton, QButtonGroup
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, QLineEdit, QScrollArea, QCheckBox, QRadioButton, QButtonGroup, QTabWidget
 )
 from PyQt5.QtCore import Qt
 from cube_utils.cube_edit_dialog import CubeEditDialog
 from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
 from version import switch_folder_on_server
+
+from frontend_controls_tab import FrontendControlsTab
 
 class ControlPanelWidget(QWidget):
     def __init__(self, parent=None):
@@ -142,6 +144,11 @@ class ControlPanelWidget(QWidget):
         # Main layout for ControlPanelWidget
         main_layout = QVBoxLayout(self)
 
+        tab_widget = QTabWidget(self)
+
+        main_tab = QWidget()
+        main_tab_layout = QVBoxLayout()
+
         # Create a scroll area and set it up for resizing and scroll behavior
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -151,33 +158,33 @@ class ControlPanelWidget(QWidget):
         content_layout = QVBoxLayout(content_widget)
 
         # Version selection (radio buttons)
-        version_label = QLabel("Select Version")
-        version_label.setStyleSheet("font-weight: bold;")
-        content_layout.addWidget(version_label)
+    #     version_label = QLabel("Select Version")
+    #     version_label.setStyleSheet("font-weight: bold;")
+    #     content_layout.addWidget(version_label)
 
-    # Create a horizontal layout for the radio buttons
-        version_layout = QHBoxLayout()
+    # # Create a horizontal layout for the radio buttons
+    #     version_layout = QHBoxLayout()
 
-    # Create radio buttons for "Female" and "Male"
-        female_radio = QRadioButton("Female")
-        male_radio = QRadioButton("Male")
+    # # Create radio buttons for "Female" and "Male"
+    #     female_radio = QRadioButton("Female")
+    #     male_radio = QRadioButton("Male")
         
-        # Add the radio buttons to the horizontal layout
-        version_layout.addWidget(female_radio)
-        version_layout.addWidget(male_radio)
+    #     # Add the radio buttons to the horizontal layout
+    #     version_layout.addWidget(female_radio)
+    #     version_layout.addWidget(male_radio)
 
-        # Add the radio buttons to a button group
-        version_button_group = QButtonGroup(self)
-        version_button_group.addButton(female_radio)
-        version_button_group.addButton(male_radio)
+    #     # Add the radio buttons to a button group
+    #     version_button_group = QButtonGroup(self)
+    #     version_button_group.addButton(female_radio)
+    #     version_button_group.addButton(male_radio)
 
-        # Set "Female" as the default selected option
-        female_radio.setChecked(True)
-        female_radio.toggled.connect(lambda checked: switch_folder_on_server("female") if checked else None)
-        male_radio.toggled.connect(lambda checked: switch_folder_on_server("male") if checked else None)
+    #     # Set "Female" as the default selected option
+    #     female_radio.setChecked(True)
+    #     female_radio.toggled.connect(lambda checked: switch_folder_on_server("female") if checked else None)
+    #     male_radio.toggled.connect(lambda checked: switch_folder_on_server("male") if checked else None)
 
         # Add the horizontal layout to the main content layout
-        content_layout.addLayout(version_layout)
+        # content_layout.addLayout(version_layout)
         # Rotation sliders
         label = QLabel("Rotation")
         label.setStyleSheet("font-weight: bold;")
@@ -282,11 +289,20 @@ class ControlPanelWidget(QWidget):
         # Set content layout to the content widget
         content_widget.setLayout(content_layout)
 
+        
+
         # Add content widget to the scroll area
         scroll_area.setWidget(content_widget)
 
+        main_tab_layout.addWidget(scroll_area)
+        main_tab.setLayout(main_tab_layout)
+        tab_widget.addTab(main_tab, "Backend Controls")
+
+        frontendTab = FrontendControlsTab()
+        tab_widget.addTab(frontendTab, "Frontend Controls")
+
         # Add scroll area to the main layout
-        main_layout.addWidget(scroll_area)
+        main_layout.addWidget(tab_widget)
         self.setLayout(main_layout)
 
     def open_edit_cubes_dialog(self):

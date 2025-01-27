@@ -21,6 +21,8 @@ from settings_control_panel import SettingsControlPanel
 
 from version_selector import VersionSelector
 
+from socket_listener_service import SocketListenerService
+
 def get_largest_display():
     app = QApplication.instance() or QApplication(sys.argv)
     screens = app.screens()
@@ -97,9 +99,10 @@ class FullScreenBlinkApp(QWidget):
         self.toggle_control_panel()
 
         self.selector = VersionSelector(self)
-        
 
-    
+        self.socket_service = SocketListenerService()
+        self.socket_service.value_received.connect(self.handle_frontend_update)
+        self.socket_service.start()
 
 
     def load_images(self):
@@ -335,8 +338,8 @@ class FullScreenBlinkApp(QWidget):
     def keyPressEvent(self, event):
         key = event.key()
         match key:
-            case Qt.Key_G:
-                self.toggle_settings_panel()
+            # case Qt.Key_G:
+            #     self.toggle_settings_panel()
             case Qt.Key_C:
                 self.toggle_version_panel()
             case Qt.Key_Escape:
@@ -377,6 +380,87 @@ class FullScreenBlinkApp(QWidget):
             self.setCursor(Qt.BlankCursor) 
             self.settings_panel.close()
             self.settings_panel = None
+
+
+    # Add this method to the FullScreenBlinkApp class in display.py
+
+    def handle_frontend_update(self, variable_name: str, value: float):
+        """
+        Handle frontend settings updates from socket listener.
+        Updates both the live config and relevant managers.
+        
+        Args:
+            variable_name (str): Name of the setting being updated
+            value (float): New value for the setting
+        """
+        print(f"Frontend update received: {variable_name} = {value}")
+        
+        # Update live config
+        if hasattr(self.live_config, variable_name):
+            setattr(self.live_config, variable_name, value)
+            
+            # Handle special cases that need manager updates
+            if variable_name == "nervousness":
+                # Update jitter manager's nervousness factor
+                if hasattr(self.blink_sleep_manager, 'jitter_manager'):
+                    print(f"Updating jitter manager nervousness to {value}")
+                    self.blink_sleep_manager.jitter_manager.nervousness = value
+                    
+                # Since nervousness affects jitter timing, restart the jitter process
+                self.blink_sleep_manager.jitter_manager.stop_all_jitter()
+                self.blink_sleep_manager.jitter_manager.start_jitter_process()
+
+            elif variable_name in ["min_blink_interval", "max_blink_interval"]:
+                if hasattr(self.blink_sleep_manager, 'blink_manager'):
+                    print(f"Updating blink intervals")
+                    self.blink_sleep_manager.blink_manager.on_blink_interval_changed()
+
+            elif variable_name == "blink_speed":
+                if hasattr(self.blink_sleep_manager, 'blink_manager'):
+                    print(f"Updating blink speed to {value}")
+
+            elif variable_name in [
+                "jitter_start_delay",
+                "large_jitter_start_delay",
+                "min_jitter_interval", 
+                "max_jitter_interval",
+                "min_jitter_speed",
+                "max_jitter_speed"
+            ]:
+                if hasattr(self.blink_sleep_manager, 'jitter_manager'):
+                    print(f"Updating jitter settings: {variable_name}")
+                    # Stop current jitter and restart with new settings
+                    self.blink_sleep_manager.jitter_manager.stop_all_jitter()
+                    self.blink_sleep_manager.jitter_manager.start_jitter_process()
+
+            elif variable_name in ["min_sleep_timeout", "max_sleep_timeout"]:
+                if hasattr(self.blink_sleep_manager, 'sleep_manager'):
+                    print("Updating sleep timeouts")
+                    self.blink_sleep_manager.sleep_manager.on_sleep_timeout_changed()
+
+            elif variable_name in ["min_random_wakeup", "max_random_wakeup"]:
+                if hasattr(self.blink_sleep_manager, 'sleep_manager'):
+                    print("Updating random wakeup intervals")
+                    self.blink_sleep_manager.sleep_manager.on_random_wakeup_changed()
+
+            elif variable_name == "display_off_timeout":
+                if hasattr(self.blink_sleep_manager, 'sleep_manager'):
+                    print(f"Updating display off timeout to {value} hours")
+
+            elif variable_name in ["stretch_x", "stretch_y", "rotate"]:
+                # Force a redraw of the current image to apply new stretching/rotation
+                current_img = self.current_filename
+                if current_img:
+                    print(f"Updating display with new {variable_name}")
+                    self.display_image(current_img)
+
+            elif variable_name == "smooth_y":
+                print(f"Updating Y-movement smoothing to {value}")
+            
+            # Log successful update
+            print(f"Successfully updated {variable_name} to {value}")
+        else:
+            print(f"Warning: Unknown setting {variable_name}")
 
             
 
