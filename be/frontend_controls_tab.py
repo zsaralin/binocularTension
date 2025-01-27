@@ -224,6 +224,30 @@ class FrontendControlsTab(QWidget):
         label.setStyleSheet("font-weight: bold;")
         layout.addWidget(label)
 
+        self.add_slider_group(
+            layout, "stretch_x",
+            "Horizontal Stretch", 1.0,
+            1.0, 1.5, 0.01
+        )
+
+        self.add_slider_group(
+            layout, "stretch_y",
+            "Vertical Stretch", 1.0,
+            1.0, 1.5, 0.01
+        )
+
+        # Image smoothing and rotation
+        self.add_slider_group(
+            layout, "smooth_y",
+            "Y-Movement Smoothing", 10.0,
+            0.0, 100.0, 1.0
+        )
+
+        self.add_slider_group(
+            layout, "rotate",
+            "Rotation (degrees)", 0.0,
+            -5.0, 5.0, 0.1
+        )
 
         # Add save button with feedback
         save_layout = QHBoxLayout()

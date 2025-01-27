@@ -446,6 +446,16 @@ class FullScreenBlinkApp(QWidget):
             elif variable_name == "display_off_timeout":
                 if hasattr(self.blink_sleep_manager, 'sleep_manager'):
                     print(f"Updating display off timeout to {value} hours")
+
+            elif variable_name in ["stretch_x", "stretch_y", "rotate"]:
+                # Force a redraw of the current image to apply new stretching/rotation
+                current_img = self.current_filename
+                if current_img:
+                    print(f"Updating display with new {variable_name}")
+                    self.display_image(current_img)
+
+            elif variable_name == "smooth_y":
+                print(f"Updating Y-movement smoothing to {value}")
             
             # Log successful update
             print(f"Successfully updated {variable_name} to {value}")
