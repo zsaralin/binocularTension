@@ -338,8 +338,6 @@ class FullScreenBlinkApp(QWidget):
     def keyPressEvent(self, event):
         key = event.key()
         match key:
-            # case Qt.Key_G:
-            #     self.toggle_settings_panel()
             case Qt.Key_C:
                 self.toggle_version_panel()
             case Qt.Key_Escape:
@@ -348,10 +346,14 @@ class FullScreenBlinkApp(QWidget):
                 self.switch_image_folder("male")
                 if self.version_selector:
                     self.version_selector.switch_folder("male")
+                    self.version_selector.stop_auto_switch()
             case Qt.Key_BracketLeft:
                 self.switch_image_folder("female")
                 if self.version_selector:
                     self.version_selector.switch_folder("female")
+                    self.version_selector.stop_auto_switch()
+            case Qt.Key_Backslash:
+                self.version_selector.handle_auto_switch(True)
             case _:
                 super().keyPressEvent(event)
 
