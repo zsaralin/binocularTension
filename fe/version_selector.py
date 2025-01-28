@@ -49,6 +49,14 @@ class VersionSelector:
         self.male_radio = QRadioButton("Male ]")
         self.switch_radio = QRadioButton("Auto Switch")
 
+        self.load_config()
+        if self.auto_switch_enabled:
+            self.switch_radio.setChecked(True)
+        elif self.current_folder == "female":
+            self.female_radio.setChecked(True)
+        else:
+            self.male_radio.setChecked(True)
+
         # Add buttons to the layout
         version_layout.addWidget(self.female_radio)
         version_layout.addWidget(self.male_radio)
@@ -112,6 +120,8 @@ class VersionSelector:
         elif self.male_radio and self.male_radio.isChecked():
             self.switch_folder("male")
 
+        self.save_config()
+
     def handle_auto_switch(self, checked):
         """
         Handles when the user enables/disables auto-switching.
@@ -134,6 +144,7 @@ class VersionSelector:
         self.switch_timer.setInterval(interval_ms)
         self.switch_timer.start()
         self.auto_switch_enabled = True
+        self.save_config()
 
     def stop_auto_switch(self):
         """
@@ -141,6 +152,7 @@ class VersionSelector:
         """
         self.switch_timer.stop()
         self.auto_switch_enabled = False
+        self.save_config()
 
     def toggle_version(self):
         """
@@ -164,6 +176,7 @@ class VersionSelector:
         """
         self.current_folder = folder_name
         self.main_display.switch_image_folder(folder_name)
+        self.save_config()
 
     def update_switch_interval_low(self, value):
         """
