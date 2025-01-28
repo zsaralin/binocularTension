@@ -338,8 +338,6 @@ class FullScreenBlinkApp(QWidget):
     def keyPressEvent(self, event):
         key = event.key()
         match key:
-            # case Qt.Key_G:
-            #     self.toggle_settings_panel()
             case Qt.Key_C:
                 self.toggle_version_panel()
             case Qt.Key_Escape:
@@ -348,23 +346,38 @@ class FullScreenBlinkApp(QWidget):
                 self.switch_image_folder("male")
                 if self.version_selector:
                     self.version_selector.switch_folder("male")
+                    self.version_selector.stop_auto_switch()
             case Qt.Key_BracketLeft:
                 self.switch_image_folder("female")
                 if self.version_selector:
                     self.version_selector.switch_folder("female")
+                    self.version_selector.stop_auto_switch()
+            case Qt.Key_Backslash:
+                self.version_selector.handle_auto_switch(True)
             case _:
                 super().keyPressEvent(event)
 
     def toggle_version_panel(self):
-        """Toggle version selection panel triggered by 'c' key."""
+        """
+        Toggle version selection panel visibility.
+        
+        This method handles both opening and closing the version control panel:
+        - If the panel doesn't exist or is closed, it creates and shows a new one
+        - If the panel exists and is visible, it closes and destroys it
+        - Updates cursor visibility based on panel state
+        - Properly maintains panel reference to prevent memory leaks
+        """
         if not hasattr(self, 'version_panel') or self.version_panel is None:
+            # Create and show new panel
             self.version_panel = VersionControlPanel(self, self.version_selector)
             self.version_panel.show()
             self.setCursor(Qt.ArrowCursor)
         else:
-            self.version_panel.close()
-            self.version_panel = None
-            self.setCursor(Qt.BlankCursor)
+            # Close existing panel
+            if self.version_panel.isVisible():
+                self.version_panel.close()
+                self.version_panel = None
+                self.setCursor(Qt.BlankCursor)
 
     def toggle_settings_panel(self):
         """Toggle settings panel triggered by 'g' key."""
