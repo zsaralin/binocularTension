@@ -8,6 +8,11 @@ class VersionSelector:
     """
 
     def __init__(self, main_display):
+        """
+        Initialize the version selector.
+        @param main_display: The main display window object.
+        @type main_display: QWidget
+        """
         self.main_display = main_display
         self.current_folder = "female"  # Default starting folder
 
@@ -32,7 +37,11 @@ class VersionSelector:
 
     def setup_ui(self, layout):
         """
-        Sets up the version selection UI components in the control panel.
+        This method initializes and configures the UI elements for version selection,
+        including radio buttons for selecting between "Female", "Male", and "Auto Switch"
+        modes, as well as spin boxes for setting the auto-switch interval.
+        @param layout: The main layout to which the UI components will be added.
+        @type layout: QVBoxLayout
         """
         from PyQt5.QtWidgets import QLabel, QHBoxLayout, QRadioButton, QButtonGroup, QDoubleSpinBox, QVBoxLayout
 
@@ -125,6 +134,8 @@ class VersionSelector:
     def handle_auto_switch(self, checked):
         """
         Handles when the user enables/disables auto-switching.
+        @param checked: Whether the auto-switch radio button is checked.
+        @type checked: bool
         """
         self.auto_switch_enabled = checked
 
@@ -173,6 +184,8 @@ class VersionSelector:
     def switch_folder(self, folder_name):
         """
         Switch to the specified folder (Female or Male).
+        @param folder_name: The name of the folder to switch to.
+        @type folder_name: str
         """
         self.current_folder = folder_name
         self.main_display.switch_image_folder(folder_name)
@@ -181,6 +194,8 @@ class VersionSelector:
     def update_switch_interval_low(self, value):
         """
         Updates the low value for auto-switch interval (in minutes).
+        @param value: The new low value for the interval.
+        @type value: float
         """
         self.auto_switch_interval_low = min(value, self.auto_switch_interval_high)
         if self.auto_switch_enabled:
@@ -189,6 +204,8 @@ class VersionSelector:
     def update_switch_interval_high(self, value):
         """
         Updates the high value for auto-switch interval (in minutes).
+        @param value: The new high value for the interval.
+        @type value: float
         """
         self.auto_switch_interval_high = max(value, self.auto_switch_interval_low)
         if self.auto_switch_enabled:
@@ -197,6 +214,8 @@ class VersionSelector:
     def load_state_from_dict(self, config):
         """
         Loads the saved configuration state.
+        @param config: The configuration state to load.
+        @type config: dict
         """
         self.auto_switch_enabled = config.get("auto_switch_enabled", False)
         self.auto_switch_interval_low = config.get("auto_switch_interval_low", 0.5)
