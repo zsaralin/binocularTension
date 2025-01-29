@@ -37,31 +37,28 @@ class PlaneLegendWidget(QWidget):
         # Add explanation sections with visibility toggles
         self.add_plane_section(
             content_layout,
-            "Vertical Division Planes (Blue)",
+            "Vertical Division Planes",
             "• Divide space into angular sections\n"
             "• Track left-right movement\n"
             "• Controlled by X Divider Angle",
-            QColor(173, 216, 230),  # Light blue
             'show_vertical_planes'
         )
         
         self.add_plane_section(
             content_layout,
-            "Top Horizontal Plane (Gray)",
+            "Top Horizontal Plane",
             "• Upper tracking boundary\n"
             "• Detects 'looking up' movements\n"
             "• Set by Y Top Divider & Angle",
-            QColor(192, 192, 192),  # Light gray
             'show_top_plane'
         )
         
         self.add_plane_section(
             content_layout,
-            "Bottom Horizontal Plane (Gray)",
+            "Bottom Horizontal Plane",
             "• Lower tracking boundary\n"
             "• Detects 'looking down' movements\n"
             "• Set by Y Bottom Divider & Angle",
-            QColor(192, 192, 192),  # Light gray
             'show_bottom_plane'
         )
         
@@ -86,7 +83,7 @@ class PlaneLegendWidget(QWidget):
         
         self.setLayout(main_layout)
         
-    def add_plane_section(self, layout, title, description, color, visibility_attr):
+    def add_plane_section(self, layout, title, description, visibility_attr):
         """Add a section explaining a specific plane type."""
         # Create container frame
         frame = QFrame()
@@ -99,14 +96,6 @@ class PlaneLegendWidget(QWidget):
         # Create header layout
         header_layout = QHBoxLayout()
         
-        # Add color sample
-        color_sample = QLabel()
-        color_sample.setFixedSize(20, 20)
-        palette = color_sample.palette()
-        palette.setColor(QPalette.Window, color)
-        color_sample.setAutoFillBackground(True)
-        color_sample.setPalette(palette)
-        header_layout.addWidget(color_sample)
         
         # Add title
         title_label = QLabel(title)
