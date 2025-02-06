@@ -20,6 +20,6 @@
     "nervousness": 0.8,
     "selected_folder": "male",
     "auto_switch_enabled": true,
-    "auto_switch_interval_low": 0.5,
-    "auto_switch_interval_high": 1.0
+    "auto_switch_interval_low": 0.1,
+    "auto_switch_interval_high": 0.2
 }
