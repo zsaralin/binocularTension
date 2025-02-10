@@ -224,7 +224,7 @@ class FullScreenBlinkApp(QWidget):
             return
         if current_x is not None and new_x is not None and not self.update_in_progress:
             delta = abs(new_x - current_x)
-            if delta > 5:
+            if delta > 10:
                 self.update_in_progress = True
 
                 print("🔹 Large movement detected! Using new Y without stabilization.")
@@ -235,7 +235,7 @@ class FullScreenBlinkApp(QWidget):
             if filename == self.current_filename:
                 return
 
-            if delta > 5 or (current_y in ['u', 's'] and self.stabilized_y == 'd') or (current_y == 'd' and self.stabilized_y in ['u', 's']):
+            if delta > 10 or (current_y in ['u', 's'] and self.stabilized_y == 'd') or (current_y == 'd' and self.stabilized_y in ['u', 's']):
                 self.blink_sleep_manager.jitter_manager.stop_all_jitter()
                 self.update_in_progress = True
 
@@ -337,25 +337,24 @@ class FullScreenBlinkApp(QWidget):
 
     def keyPressEvent(self, event):
         key = event.key()
-        match key:
-            case Qt.Key_C:
-                self.toggle_version_panel()
-            case Qt.Key_Escape:
-                self.close()
-            case Qt.Key_BracketRight:
-                self.switch_image_folder("male")
-                if self.version_selector:
-                    self.version_selector.switch_folder("male")
-                    self.version_selector.stop_auto_switch()
-            case Qt.Key_BracketLeft:
-                self.switch_image_folder("female")
-                if self.version_selector:
-                    self.version_selector.switch_folder("female")
-                    self.version_selector.stop_auto_switch()
-            case Qt.Key_Backslash:
-                self.version_selector.handle_auto_switch(True)
-            case _:
-                super().keyPressEvent(event)
+        if key == Qt.Key_C:
+            self.toggle_version_panel()
+        elif key == Qt.Key_Escape:
+            self.close()
+        elif key == Qt.Key_BracketRight:
+            self.switch_image_folder("male")
+            if self.version_selector:
+                self.version_selector.switch_folder("male")
+                self.version_selector.stop_auto_switch()
+        elif key == Qt.Key_BracketLeft:
+            self.switch_image_folder("female")
+            if self.version_selector:
+                self.version_selector.switch_folder("female")
+                self.version_selector.stop_auto_switch()
+        elif key == Qt.Key_Backslash:
+            self.version_selector.handle_auto_switch(True)
+        else:
+            super().keyPressEvent(event)
 
     def toggle_version_panel(self):
         """

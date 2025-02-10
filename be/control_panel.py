@@ -10,6 +10,7 @@ from cube_utils.cube_manager import CubeManager
 from live_config import LiveConfig
 from pynput import keyboard
 from frontend_controls_tab import FrontendControlsTab
+from slider_value_handler import SliderValueHandler
 
 class KeySignalEmitter(QObject):
     """Signal emitter for global keyboard events.
@@ -32,6 +33,7 @@ class ControlPanelWidget(QWidget):
         @param parent: Parent widget (default: None)
         """
         super(ControlPanelWidget, self).__init__(parent)
+        self.value_handler = SliderValueHandler()
         self.live_config = LiveConfig.get_instance()
         self.cube_manager = CubeManager.get_instance()
         self.window_front = False
@@ -176,7 +178,11 @@ class ControlPanelWidget(QWidget):
         """
         if os.path.exists('config.json'):
             with open('config.json', 'r') as config_file:
-                return json.load(config_file)
+                config = json.load(config_file)
+                config['translate_x'] = config.get('translate_x', 0)
+                config['translate_y'] = config.get('translate_y', 0)
+                config['translate_z'] = config.get('translate_z', 0)
+                return config
                 
         return {
             # Default configuration values
@@ -200,29 +206,49 @@ class ControlPanelWidget(QWidget):
 
     def save_config(self):
         """Save current configuration to config file."""
-        config = {
-            # Current parameter values
+        config_data = {
             "version": self.version[0],
-            "rotate_x": self.rotation[0], "rotate_y": self.rotation[1], "rotate_z": self.rotation[2],
-            "translate_x": self.translation[0], "translate_y": self.translation[1], "translate_z": self.translation[2],
-            "camera_z": self.divider[0], "y_top_divider": self.divider[1], "y_bottom_divider": self.divider[2],
-            "x_divider_angle": self.divider[3], "draw_planes": self.divider[6],
-            "y_top_divider_angle": self.divider[4], "y_bottom_divider_angle": self.divider[5],
-            "min_contour_area": self.movement[0], "movement_thres": self.movement[1],
-            "headpoint_smoothing": self.movement[2], "active_object_stick_time": self.movement[3],
-            "conf_thres": self.movement[4], "stationary_timeout": self.movement[5],
-            "roi_filter_dur": self.movement[6], "point_size": self.point_size[0],
-            "num_divisions": self.num_divisions[0], "x_threshold_min": self.thresholds[0],
-            "x_threshold_max": self.thresholds[1], "y_threshold_min": self.thresholds[2],
-            "y_threshold_max": self.thresholds[3], "z_threshold_min": self.thresholds[4],
-            "z_threshold_max": self.thresholds[5], "stable_thres_x": self.smoothing[0],
-            "stable_thres_y": self.smoothing[1], "detect_people": self.detection_type[0],
+            "rotate_x": self.rotation[0],
+            "rotate_y": self.rotation[1],
+            "rotate_z": self.rotation[2],
+            "translate_x": self.translation[0],
+            "translate_y": self.translation[1],
+            "translate_z": self.translation[2],
+            "camera_z": self.divider[0],
+            "y_top_divider": self.divider[1],
+            "y_bottom_divider": self.divider[2],
+            "x_divider_angle": self.divider[3],
+            "draw_planes": self.divider[6],
+            "y_top_divider_angle": self.divider[4],
+            "y_bottom_divider_angle": self.divider[5],
+            "min_contour_area": self.movement[0],
+            "movement_thres": self.movement[1],
+            "headpoint_smoothing": self.movement[2],
+            "active_object_stick_time": self.movement[3],
+            "conf_thres": self.movement[4],
+            "stationary_timeout": self.movement[5],
+            "roi_filter_dur": self.movement[6],
+            "point_size": self.point_size[0],
+            "num_divisions": self.num_divisions[0],
+            "x_threshold_min": self.thresholds[0],
+            "x_threshold_max": self.thresholds[1],
+            "y_threshold_min": self.thresholds[2],
+            "y_threshold_max": self.thresholds[3],
+            "z_threshold_min": self.thresholds[4],
+            "z_threshold_max": self.thresholds[5],
+            "stable_thres_x": self.smoothing[0],
+            "stable_thres_y": self.smoothing[1],
+            "detect_people": self.detection_type[0],
             "detect_objects": self.detection_type[1]
         }
 
-        with open('config.json', 'w') as config_file:
-            json.dump(config, config_file, indent=4)
-        print("Configuration saved.")
+        try:
+            print("Translation values being saved:", self.translation)
+            with open('config.json', 'w') as f:
+                json.dump(config_data, f, indent=4)
+            print("Configuration saved successfully")
+        except Exception as e:
+            print(f"Error saving configuration: {e}")
 
 
     def init_ui(self):
@@ -276,11 +302,12 @@ class ControlPanelWidget(QWidget):
         self._create_slider_group(layout, "Rot Z", 2, -180, 180, self.rotation, 2)
 
     def _add_translation_controls(self, layout):
-        """Add translation controls to the layout."""
+        """Add translation control sliders."""
         self._add_section_header(layout, "Translation")
-        self._create_slider_group(layout, "Trans X", 0, -10, 10, self.translation, 0, 0.1)
-        self._create_slider_group(layout, "Trans Y", 1, -10, 10, self.translation, 1, 0.1)
-        self._create_slider_group(layout, "Trans Z", 2, -10, 10, self.translation, 2, 0.1)
+        self._create_slider_group(layout, "Trans X", 0, -10, 10, self.translation, 0, 0.01)
+        self._create_slider_group(layout, "Trans Y", 1, -10, 10, self.translation, 1, 0.01)
+        self._create_slider_group(layout, "Trans Z", 2, -10, 10, self.translation, 2, 0.01)
+
 
     def open_edit_cubes_dialog(self):
         """Opens the CubeEditDialog to edit cube parameters."""
@@ -288,46 +315,71 @@ class ControlPanelWidget(QWidget):
         dialog.exec_()
 
     def _create_slider_group(self, layout, label_text, index, min_val, max_val, target_list, list_index, step=1):
-        """Create a slider group with label, slider, and input field.
+        """
+        Create a slider group with label, slider, and input field.
         
-        @param layout: Parent layout to add components to
-        @param label_text: Text for the control label
-        @param index: Control index in parameter group
-        @param min_val: Minimum slider value
-        @param max_val: Maximum slider value
-        @param target_list: Target parameter list to modify
-        @param list_index: Index in target parameter list
-        @param step: Value increment step size
+        @param layout: Layout to add the slider group to
+        @param label_text: Text label for the slider
+        @param index: Index for value updates
+        @param min_val: Minimum value
+        @param max_val: Maximum value
+        @param target_list: List containing the target value
+        @param list_index: Index in the target list
+        @param step: Step size for value changes (default: 1)
         """
         hbox = QHBoxLayout()
         
-        # Slider setup
-        scaled_min, scaled_max, scaled_value = self._calculate_scaled_values(
-            min_val, max_val, target_list[list_index], step
-        )
+        # Convert current value to slider position
+        current_value = target_list[list_index]
+        slider_pos = self.value_handler.to_slider_value(current_value, step)
         
+        # Convert min/max to slider positions
+        slider_min = self.value_handler.to_slider_value(min_val, step)
+        slider_max = self.value_handler.to_slider_value(max_val, step)
+        
+        # Create UI elements
         label = QLabel(label_text)
         slider = QSlider(Qt.Horizontal)
-        slider.setRange(scaled_min, scaled_max)
-        slider.setValue(scaled_value)
+        slider.setRange(slider_min, slider_max)
+        slider.setValue(slider_pos)
         
-        # Value display
-        value_label = QLabel(f"{target_list[list_index]:.2f}")
-        input_field = QLineEdit(f"{target_list[list_index]:.2f}")
+        # Format display value
+        display_value = self.value_handler.format_display_value(current_value, step)
+        value_label = QLabel(display_value)
+        input_field = QLineEdit(display_value)
         input_field.setFixedWidth(50)
+
+        def on_slider_changed(slider_pos):
+            """Handle slider value changes."""
+            # Convert slider position to actual value
+            actual_value = self.value_handler.from_slider_value(slider_pos, step)
+            
+            # Update displays
+            formatted_value = self.value_handler.format_display_value(actual_value, step)
+            value_label.setText(formatted_value)
+            input_field.setText(formatted_value)
+            
+            # Store actual value
+            target_list[list_index] = actual_value
+            self.update_value(index, target_list, actual_value, step)
+
+        def on_input_changed():
+            """Handle direct input value changes."""
+            try:
+                input_value = float(input_field.text())
+                if min_val <= input_value <= max_val:
+                    # Convert input to slider position
+                    slider_pos = self.value_handler.to_slider_value(input_value, step)
+                    slider.setValue(slider_pos)
+                    # Store the actual value
+                    target_list[list_index] = input_value
+                    self.update_value(index, target_list, input_value, step)
+            except ValueError:
+                pass
+
+        slider.valueChanged.connect(on_slider_changed)
+        input_field.returnPressed.connect(on_input_changed)
         
-        # Signal connections
-        input_field.returnPressed.connect(
-            lambda: self._update_slider_from_input(input_field, slider, min_val, max_val, step)
-        )
-        slider.valueChanged.connect(
-            lambda value: self._update_value_display(value_label, input_field, value, step)
-        )
-        slider.valueChanged.connect(
-            lambda value: self._update_parameter(index, target_list, value, step)
-        )
-        
-        # Layout assembly
         hbox.addWidget(label)
         hbox.addWidget(slider)
         hbox.addWidget(value_label)
@@ -471,8 +523,8 @@ class ControlPanelWidget(QWidget):
         """Update slider position from input field value."""
         try:
             input_value = float(input_field.text())
-            clamped_value = max(min(input_value, max_val), min_val)
-            scaled_value = int(clamped_value * (10 if step == 0.1 else 100 if step == 0.01 else 1))
+            # clamped_value = max(min(input_value, max_val), min_val)
+            scaled_value = int(input_value * (10 if step == 0.1 else 100 if step == 0.01 else 1))
             slider.setValue(scaled_value)
         except ValueError:
             pass
@@ -542,30 +594,44 @@ class ControlPanelWidget(QWidget):
         self.live_config.detect_objects = self.detection_type[1]
 
     def update_value(self, index, target_list, value, step):
-        """Update live config dynamically when a slider changes."""
-        if step == 10:
-            target_list[index] = value - value % 10
-        else:
-            target_list[index] = value / 10 if step == 0.1 else value / 100 if step == 0.01 else value
-            
+        """
+        Update live config dynamically when a slider changes.
+        
+        @param index: Index for the target parameter
+        @param target_list: List containing the target value
+        @param value: New value to set
+        @param step: Step size for value changes
+        """
+        # Store the actual value directly - no need for scaling since it's already handled
+        target_list[index] = value
+                
+        # Update live config based on which parameter changed
         if target_list == self.rotation:
-            setattr(self.live_config, ["rotate_x", "rotate_y", "rotate_z"][index], target_list[index])
+            setattr(self.live_config, ["rotate_x", "rotate_y", "rotate_z"][index], value)
         elif target_list == self.translation:
-            setattr(self.live_config, ["translate_x", "translate_y", "translate_z"][index], target_list[index])
+            setattr(self.live_config, ["translate_x", "translate_y", "translate_z"][index], value)
         elif target_list == self.divider:
-            setattr(self.live_config, ["camera_z", "y_top_divider", "y_bottom_divider","x_divider_angle", "y_top_divider_angle", "y_bottom_divider_angle"][index], target_list[index])
+            setattr(self.live_config, [
+                "camera_z", "y_top_divider", "y_bottom_divider",
+                "x_divider_angle", "y_top_divider_angle", "y_bottom_divider_angle"
+            ][index], value)
         elif target_list == self.movement:
-            setattr(self.live_config, ["min_contour_area", "movement_thres", "headpoint_smoothing", "active_object_stick_time", "conf_thres", "stationary_timeout", "roi_filter_dur"][index], target_list[index])
+            setattr(self.live_config, [
+                "min_contour_area", "movement_thres", "headpoint_smoothing",
+                "active_object_stick_time", "conf_thres", "stationary_timeout", "roi_filter_dur"
+            ][index], value)
         elif target_list == self.smoothing:
-            setattr(self.live_config, ["stable_x_thres","stable_y_thres"][index], target_list[index])
+            setattr(self.live_config, ["stable_x_thres", "stable_y_thres"][index], value)
         elif target_list == self.thresholds:
-            setattr(self.live_config, ["x_threshold_min", "x_threshold_max", "y_threshold_min", "y_threshold_max", "z_threshold_min", "z_threshold_max"][index], target_list[index])
+            setattr(self.live_config, [
+                "x_threshold_min", "x_threshold_max", "y_threshold_min",
+                "y_threshold_max", "z_threshold_min", "z_threshold_max"
+            ][index], value)
         elif target_list == self.detection_type:
-            setattr(self.live_config, ["detect_people", "detect_objects"][index], target_list[index])
+            setattr(self.live_config, ["detect_people", "detect_objects"][index], value)
         elif target_list == self.point_size:
-            self.live_config.point_size = target_list[index]
+            self.live_config.point_size = value
         elif target_list == self.num_divisions:
-            self.live_config.num_divisions = target_list[index]
+            self.live_config.num_divisions = value
 
 
-    
