@@ -48,7 +48,7 @@ class VersionControlPanel(QWidget):
         """
         if event.type() == QEvent.KeyPress:
             # Forward 'c' key press to main display
-            if event.key() == Qt.Key_C:
+            if event.key() == Qt.Key_U:
                 self.main_display.keyPressEvent(event)
                 return True
             # Forward bracket keys for version switching
