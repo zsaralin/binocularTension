@@ -124,8 +124,8 @@ class ControlPanelWidget(QWidget):
         @param key: The pressed key object from pynput
         """
         try:
-            if key.char == 'u':
-                self.key_emitter.key_pressed.emit('u')
+            if key.char == 'g':
+                self.key_emitter.key_pressed.emit('g')
         except AttributeError:
             pass
 
@@ -134,7 +134,7 @@ class ControlPanelWidget(QWidget):
         
         @param key: Character of the pressed key
         """
-        if key == 'u':
+        if key == 'g':
             self.toggle_window()
 
     def toggle_window(self):
