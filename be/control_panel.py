@@ -124,8 +124,8 @@ class ControlPanelWidget(QWidget):
         @param key: The pressed key object from pynput
         """
         try:
-            if key.char == 'g':
-                self.key_emitter.key_pressed.emit('g')
+            if key.char == 'u':
+                self.key_emitter.key_pressed.emit('u')
         except AttributeError:
             pass
 
@@ -134,7 +134,7 @@ class ControlPanelWidget(QWidget):
         
         @param key: Character of the pressed key
         """
-        if key == 'g':
+        if key == 'u':
             self.toggle_window()
 
     def toggle_window(self):
@@ -145,8 +145,6 @@ class ControlPanelWidget(QWidget):
         else:
             self._send_to_back()
         self.window_front = not self.window_front
-
-        
 
     def _bring_to_front(self):
         """Bring window to foreground and ensure it's visible."""
@@ -633,5 +631,3 @@ class ControlPanelWidget(QWidget):
             self.live_config.point_size = value
         elif target_list == self.num_divisions:
             self.live_config.num_divisions = value
-
-
