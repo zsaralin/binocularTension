@@ -86,11 +86,12 @@ class FullScreenBlinkApp(QWidget):
 
         self.update_skip_count = 0 
 
-        self.showFullScreen()
-        self.activateWindow()  # Make this window the active window
-        self.setFocus(Qt.OtherFocusReason)  # Give this window keyboard focus
-        self.setWindowState(self.windowState() | ~Qt.WindowMinimized | Qt.WindowActive)  # Bring window to front
-        self.raise_()
+        # self.showFullScreen()
+        # self.activateWindow()  # Make this window the active window
+        # self.setFocus(Qt.OtherFocusReason)  # Give this window keyboard focus
+        # self.setWindowState(self.windowState() | ~Qt.WindowMinimized | Qt.WindowActive)  # Bring window to front
+        # self.raise_()
+        self._bring_to_front()
 
         # Cheating way of activating all of the config settings which currently only activate at 
         self.toggle_control_panel()
@@ -396,6 +397,7 @@ class FullScreenBlinkApp(QWidget):
         print("Bringing window to front.")
         self.activateWindow()
         self.raise_()
+        self.showFullScreen()
 
     # Add this method to the FullScreenBlinkApp class in display.py
 
@@ -411,8 +413,10 @@ class FullScreenBlinkApp(QWidget):
         print(f"Frontend update received: {variable_name} = {value}")
 
         if variable_name == "focus_command":
-            self.activateWindow()
-            self.raise_()
+            # self.activateWindow()
+            # self.raise_()
+            # self.showFullScreen()
+            self._bring_to_front()
             return
         
         # Update live config
