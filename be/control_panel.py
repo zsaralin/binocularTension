@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QPushButton, 
     QLineEdit, QScrollArea, QCheckBox, QTabWidget
@@ -137,23 +138,52 @@ class ControlPanelWidget(QWidget):
         if key == 'g':
             self.toggle_window()
 
-    def toggle_window(self):
-        """Toggle window visibility state between front and back."""
-        window = self.window()
-        if not self.window_front:
-            self._bring_to_front()
-        else:
-            self._send_to_back()
-        self.window_front = not self.window_front
-
     def _bring_to_front(self):
         """Bring window to foreground and ensure it's visible."""
+        print("Bringing window to front")
         window = self.window()
-        if window.isMinimized():
-            window.showNormal()
-        window.activateWindow()
-        window.raise_()
-        window.setWindowState(window.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        window.show()  # Make sure window is visible
+        window.raise_()  # Bring it to the top
+        window.activateWindow()  # Give it keyboard focus
+            
+    def focusOutEvent(self, event):
+        """Handle window losing focus - update window_front state."""
+        print("Focus lost")
+        self.window_front = False
+        super().focusOutEvent(event)
+
+    def isWindowActive(self):
+        """Check if window is currently the active window."""
+        return self.window().isActiveWindow()
+        
+    def toggle_window(self):
+        """Toggle window visibility state."""
+        window = self.window()
+        
+        # Check if window is visible and on top
+        is_top_window = window.windowFlags() & Qt.WindowStaysOnTopHint
+        
+        if not is_top_window:
+            # Bring to front
+            window.setWindowFlags(window.windowFlags() | Qt.WindowStaysOnTopHint)
+            window.show()
+            window.raise_()
+            window.activateWindow()
+        else:
+            # Remove stay on top flag and lower
+            window.setWindowFlags(window.windowFlags() & ~Qt.WindowStaysOnTopHint)
+            window.show()
+            window.lower()
+            # Send socket message to bring frontend to front
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                    message = {
+                        "variable": "focus_command",
+                        "value": 1
+                    }
+                    sock.sendto(json.dumps(message).encode(), ('localhost', 12345))
+            except Exception as e:
+                print(f"Error sending focus command: {e}")
 
     def _send_to_back(self):
         """Send window to background and minimize."""

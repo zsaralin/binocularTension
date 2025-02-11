@@ -388,6 +388,11 @@ class FullScreenBlinkApp(QWidget):
             self.settings_panel.close()
             self.settings_panel = None
 
+    def _bring_to_front(self):
+        """Bring window to foreground."""
+        print("Bringing window to front.")
+        self.activateWindow()
+        self.raise_()
 
     # Add this method to the FullScreenBlinkApp class in display.py
 
@@ -401,6 +406,11 @@ class FullScreenBlinkApp(QWidget):
             value (float): New value for the setting
         """
         print(f"Frontend update received: {variable_name} = {value}")
+
+        if variable_name == "focus_command":
+            self.activateWindow()
+            self.raise_()
+            return
         
         # Update live config
         if hasattr(self.live_config, variable_name):
