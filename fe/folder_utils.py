@@ -22,10 +22,10 @@ def remove_files_with_f(folder_path):
 
 # Usage example
 if __name__ == "__main__":
-    remove_files_with_f( './eyeballImages/Male')
+    remove_files_with_f( './eyeballImages/Blue')
 
 # Set the parent directory path
-# parent_dir = './eyeballImages/Male'
+# parent_dir = './eyeballImages/Blue'
 
 # def empty_subfolders():
 #     # Walk through the directory

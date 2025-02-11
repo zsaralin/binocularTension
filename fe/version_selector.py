@@ -14,7 +14,7 @@ class VersionSelector:
         @type main_display: QWidget
         """
         self.main_display = main_display
-        self.current_folder = "female"  # Default starting folder
+        self.current_folder = "brown"  # Default starting folder
 
         # Shared timer for auto-switching
         if not hasattr(VersionSelector, "_active_timer"):
@@ -38,7 +38,7 @@ class VersionSelector:
     def setup_ui(self, layout):
         """
         This method initializes and configures the UI elements for version selection,
-        including radio buttons for selecting between "Female", "Male", and "Auto Switch"
+        including radio buttons for selecting between "Brown", "Blue", and "Auto Switch"
         modes, as well as spin boxes for setting the auto-switch interval.
         @param layout: The main layout to which the UI components will be added.
         @type layout: QVBoxLayout
@@ -54,14 +54,14 @@ class VersionSelector:
         version_layout = QHBoxLayout()
 
         # Create and configure radio buttons
-        self.female_radio = QRadioButton("Female [")
-        self.male_radio = QRadioButton("Male ]")
+        self.female_radio = QRadioButton("Brown [")
+        self.male_radio = QRadioButton("Blue ]")
         self.switch_radio = QRadioButton("Auto Switch")
 
         self.load_config()
         if self.auto_switch_enabled:
             self.switch_radio.setChecked(True)
-        elif self.current_folder == "female":
+        elif self.current_folder == "brown":
             self.female_radio.setChecked(True)
         else:
             self.male_radio.setChecked(True)
@@ -117,7 +117,7 @@ class VersionSelector:
 
     def handle_manual_selection(self):
         """
-        Handles when the user selects Female or Male manually.
+        Handles when the user selects Brown or Blue manually.
         """
         if self.switch_radio and self.switch_radio.isChecked():
             return  # Ignore if auto-switch is enabled
@@ -125,9 +125,9 @@ class VersionSelector:
         self.stop_auto_switch()
 
         if self.female_radio and self.female_radio.isChecked():
-            self.switch_folder("female")
+            self.switch_folder("brown")
         elif self.male_radio and self.male_radio.isChecked():
-            self.switch_folder("male")
+            self.switch_folder("blue")
 
         self.save_config()
 
@@ -167,23 +167,23 @@ class VersionSelector:
 
     def toggle_version(self):
         """
-        Toggles between Female and Male versions.
+        Toggles between Brown and Blue versions.
         Called by the auto-switch timer.
         """
         # Do not rely on UI elements like self.switch_radio here
         if not self.auto_switch_enabled:
             return
 
-        if self.current_folder == "female":
-            self.switch_folder("male")
+        if self.current_folder == "brown":
+            self.switch_folder("blue")
         else:
-            self.switch_folder("female")
+            self.switch_folder("brown")
 
         self.start_auto_switch()
 
     def switch_folder(self, folder_name):
         """
-        Switch to the specified folder (Female or Male).
+        Switch to the specified folder (Brown or Blue).
         @param folder_name: The name of the folder to switch to.
         @type folder_name: str
         """
@@ -220,7 +220,7 @@ class VersionSelector:
         self.auto_switch_enabled = config.get("auto_switch_enabled", False)
         self.auto_switch_interval_low = config.get("auto_switch_interval_low", 0.5)
         self.auto_switch_interval_high = config.get("auto_switch_interval_high", 0.5)
-        self.current_folder = config.get("selected_folder", "female")
+        self.current_folder = config.get("selected_folder", "brown")
 
         if self.auto_switch_enabled:
             self.start_auto_switch()

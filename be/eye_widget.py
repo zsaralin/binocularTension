@@ -18,7 +18,7 @@ class EyeWidget(QWidget):
         
         if not hasattr(self, 'initialized'):  # Initialize only once
             self.initialized = True
-            self.image_folder = "../fe/eyeballImages/Female"
+            self.image_folder = "../fe/eyeballImages/Brown"
 
             # Set up QLabel to display images
             self.label = QLabel(self)

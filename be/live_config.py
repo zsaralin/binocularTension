@@ -10,7 +10,7 @@ class LiveConfig:
         return cls._instance
 
     def reset_to_defaults(self):
-        self.version = "Female"
+        self.version = "Brown"
         self.rotate_x = 0
         self.rotate_y = 0
         self.rotate_z = 0

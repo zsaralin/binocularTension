@@ -35,7 +35,7 @@ class FullScreenBlinkApp(QWidget):
     def __init__(self, image_folders):
         super().__init__()
 
-        self.current_folder = "female"  # Start with "female" folder
+        self.current_folder = "brown"  # Start with "brown" folder
         self.current_filename = "bt_20_cso.jpg"
         self.update_in_progress = False  # Flag to prevent updates during transitions
         self.live_config = DisplayLiveConfig.get_instance() # Load live config values
@@ -51,12 +51,12 @@ class FullScreenBlinkApp(QWidget):
 
         
         self.image_folders = {  # Store folders with labels
-            "female": image_folders[0],
-            "male": image_folders[1],
+            "brown": image_folders[0],
+            "blue": image_folders[1],
         }
         # Load images
-        self.image_filenames = {"female": [], "male": []}
-        self.images = {"female": {}, "male": {}}
+        self.image_filenames = {"brown": [], "blue": []}
+        self.images = {"brown": {}, "blue": {}}
         self.load_images()
 
         
@@ -115,7 +115,7 @@ class FullScreenBlinkApp(QWidget):
                         pixmap = QPixmap(image_path)
                         self.image_filenames[folder_key].append(filename)
                         self.images[folder_key][filename] = pixmap
-        if self.image_filenames["female"]:  # Start with the first image in "female"
+        if self.image_filenames["brown"]:  # Start with the first image in "brown"
             self.display_image(self.current_filename)
 
     def extract_x_from_filename(self, filename):
@@ -276,7 +276,7 @@ class FullScreenBlinkApp(QWidget):
 
     def switch_image_folder(self, folder_name):
         if folder_name not in self.image_folders:
-            print(f"Invalid folder name: {folder_name}. Must be 'female' or 'male'.")
+            print(f"Invalid folder name: {folder_name}. Must be 'brown' or 'blue'.")
             return
         self.current_folder = folder_name
         print(f"Switched to folder: {folder_name}")
@@ -342,14 +342,14 @@ class FullScreenBlinkApp(QWidget):
         elif key == Qt.Key_Escape:
             self.close()
         elif key == Qt.Key_BracketRight:
-            self.switch_image_folder("male")
+            self.switch_image_folder("blue")
             if self.version_selector:
-                self.version_selector.switch_folder("male")
+                self.version_selector.switch_folder("blue")
                 self.version_selector.stop_auto_switch()
         elif key == Qt.Key_BracketLeft:
-            self.switch_image_folder("female")
+            self.switch_image_folder("brown")
             if self.version_selector:
-                self.version_selector.switch_folder("female")
+                self.version_selector.switch_folder("brown")
                 self.version_selector.stop_auto_switch()
         elif key == Qt.Key_Backslash:
             self.version_selector.handle_auto_switch(True)
@@ -478,7 +478,7 @@ class FullScreenBlinkApp(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    image_folders = ["./eyeballImages/Female", "./eyeballImages/Male"]
+    image_folders = ["./eyeballImages/Brown", "./eyeballImages/Blue"]
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)

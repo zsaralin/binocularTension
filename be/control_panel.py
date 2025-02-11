@@ -184,7 +184,7 @@ class ControlPanelWidget(QWidget):
                 
         return {
             # Default configuration values
-            "version": "Female",
+            "version": "Brown",
             "rotate_x": 0, "rotate_y": 0, "rotate_z": 0,
             "translate_x": 0, "translate_y": 0, "translate_z": 0,
             "camera_z": 0, "y_top_divider": 0, "y_bottom_divider": 0,
