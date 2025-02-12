@@ -102,8 +102,7 @@ class FullScreenBlinkApp(QWidget):
         self.socket_service = SocketListenerService()
         self.socket_service.value_received.connect(self.handle_frontend_update)
         self.socket_service.start()
-
-
+        
     def load_images(self):
         for folder_key, folder_path in self.image_folders.items():
             if os.path.exists(folder_path):
@@ -401,22 +400,19 @@ class FullScreenBlinkApp(QWidget):
         Bring window to foreground and ensure it's above taskbar.
         Uses multiple techniques to guarantee window activation and proper z-order.
         """
-        # First ensure window is visible and in the right state
-        # self.showNormal()  # Reset window state
         self.showFullScreen()  # Show full screen
         
         # Set window flags to stay on top temporarily
         # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.Tool)
         # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setFocusPolicy(Qt.StrongFocus)
         self.show()
         
         self.activateWindow()
         self.raise_()
         # Clear the stay on top flag after a brief delay
         # QTimer.singleShot(100, lambda: self._clear_top_flag())
-        
-        # Force activation and raise
-        # self.showFullScreen()
+
 
     # Add this method to the FullScreenBlinkApp class in display.py
         
