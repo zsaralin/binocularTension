@@ -1,0 +1,25 @@
+{
+  "backend": {
+    "movement": {
+      "min_contour_area": 400,
+      "movement_thres": 5,
+      "headpoint_smoothing": 0.5,
+      "active_object_stick_time": 2,
+      "conf_thres": 0.2,
+      "stationary_timeout": 15,
+      "roi_filter_dur": 8
+    },
+    "smoothing": {
+      "stable_thres_x": 5,
+      "stable_thres_y": 5
+    },
+    "thresholds": {
+      "x_threshold_min": -10,
+      "x_threshold_max": 10,
+      "y_threshold_min": -5,
+      "y_threshold_max": 35,
+      "z_threshold_min": -8,
+      "z_threshold_max": -3
+    }
+  }
+}
