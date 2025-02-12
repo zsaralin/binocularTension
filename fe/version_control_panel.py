@@ -73,42 +73,37 @@ class VersionControlPanel(QWidget):
         
         preset_layout = QHBoxLayout()
 
-        fair_button = QPushButton("Fair")
-        fair_button.clicked.connect(self.set_fair_preset)
-        
-        home_button = QPushButton("Home")
-        home_button.clicked.connect(self.set_home_preset)
+        nervous_button = QPushButton("Nervous")
+        nervous_button.clicked.connect(lambda: self.apply_preset("nervous"))
 
-        museum_button = QPushButton("Museum")
-        museum_button.clicked.connect(self.set_museum_preset)
+        medium_button = QPushButton("Medium")
+        nervous_button.clicked.connect(lambda: self.apply_preset("medium"))
+
+        calm_button = QPushButton("Calm")
+        nervous_button.clicked.connect(lambda: self.apply_preset("calm"))
+
+        preset_layout.addWidget(nervous_button)
+        preset_layout.addWidget(medium_button)
+        preset_layout.addWidget(calm_button)
+
+        # fair_button = QPushButton("Fair")
+        # fair_button.clicked.connect(self.set_fair_preset)
         
-        preset_layout.addWidget(fair_button)
-        preset_layout.addWidget(museum_button)
-        preset_layout.addWidget(home_button)
+        # home_button = QPushButton("Home")
+        # home_button.clicked.connect(self.set_home_preset)
+
+        # museum_button = QPushButton("Museum")
+        # museum_button.clicked.connect(self.set_museum_preset)
+        
+        # preset_layout.addWidget(fair_button)
+        # preset_layout.addWidget(museum_button)
+        # preset_layout.addWidget(home_button)
         
         layout.addLayout(preset_layout)
         self.setLayout(layout)
 
-    def set_home_preset(self):
-        """Apply home environment preset settings."""
-        self.version_selector.update_switch_interval_low(120)
-        self.version_selector.update_switch_interval_high(300)
-        self.version_selector.timer_spinbox1.setValue(120)
-        self.version_selector.timer_spinbox2.setValue(300)
-
-    def set_museum_preset(self):
-        """Apply museum environment preset settings."""
-        self.version_selector.update_switch_interval_low(1)
-        self.version_selector.update_switch_interval_high(5)
-        self.version_selector.timer_spinbox1.setValue(1)
-        self.version_selector.timer_spinbox2.setValue(5)
-
-    def set_fair_preset(self):
-        """Apply fair environment preset settings."""
-        self.version_selector.update_switch_interval_low(0.5)
-        self.version_selector.update_switch_interval_high(1)
-        self.version_selector.timer_spinbox1.setValue(0.5)
-        self.version_selector.timer_spinbox2.setValue(1)
+    def apply_preset(self, preset_name: str):
+        print(f"Applying preset: {preset_name}")
 
     def closeEvent(self, event):
         """
