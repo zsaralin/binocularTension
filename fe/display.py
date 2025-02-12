@@ -339,7 +339,8 @@ class FullScreenBlinkApp(QWidget):
         if key == Qt.Key_U:
             self.toggle_version_panel()
         elif key == Qt.Key_Escape:
-            self.close()
+            sys.exit()
+            # self.close()
         elif key == Qt.Key_BracketRight:
             self.switch_image_folder("blue")
             if self.version_selector:
@@ -395,11 +396,37 @@ class FullScreenBlinkApp(QWidget):
     def _bring_to_front(self):
         """Bring window to foreground."""
         print("Bringing window to front.")
+        """
+        Bring window to foreground and ensure it's above taskbar.
+        Uses multiple techniques to guarantee window activation and proper z-order.
+        """
+        # First ensure window is visible and in the right state
+        # self.showNormal()  # Reset window state
+        self.showFullScreen()  # Show full screen
+        
+        # Set window flags to stay on top temporarily
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.show()
+        
+        # Clear the stay on top flag after a brief delay
+        QTimer.singleShot(100, lambda: self._clear_top_flag())
+        
+        # Force activation and raise
         self.activateWindow()
         self.raise_()
-        self.showFullScreen()
+        # self.showFullScreen()
 
     # Add this method to the FullScreenBlinkApp class in display.py
+        
+        # Additional focus request
+        QTimer.singleShot(200, self.activateWindow)
+
+    # Add this method to the FullScreenBlinkApp class in display.py
+
+    def _clear_top_flag(self):
+        """Clear the stay on top flag."""
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowStaysOnTopHint)
+        self.show()
 
     def handle_frontend_update(self, variable_name: str, value: float):
         """
