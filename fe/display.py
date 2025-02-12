@@ -341,17 +341,17 @@ class FullScreenBlinkApp(QWidget):
         elif key == Qt.Key_Escape:
             sys.exit()
             # self.close()
-        elif key == Qt.Key_BracketRight:
+        elif key == Qt.Key_Left:
             self.switch_image_folder("blue")
             if self.version_selector:
                 self.version_selector.switch_folder("blue")
                 self.version_selector.stop_auto_switch()
-        elif key == Qt.Key_BracketLeft:
+        elif key == Qt.Key_Right:
             self.switch_image_folder("brown")
             if self.version_selector:
                 self.version_selector.switch_folder("brown")
                 self.version_selector.stop_auto_switch()
-        elif key == Qt.Key_Backslash:
+        elif key == Qt.Key_Down or key == Qt.Key_Up:
             self.version_selector.handle_auto_switch(True)
         else:
             super().keyPressEvent(event)
@@ -366,6 +366,7 @@ class FullScreenBlinkApp(QWidget):
         - Updates cursor visibility based on panel state
         - Properly maintains panel reference to prevent memory leaks
         """
+        print("Toggling version panel.")
         if not hasattr(self, 'version_panel') or self.version_panel is None:
             # Create and show new panel
             self.version_panel = VersionControlPanel(self, self.version_selector)
@@ -405,15 +406,16 @@ class FullScreenBlinkApp(QWidget):
         self.showFullScreen()  # Show full screen
         
         # Set window flags to stay on top temporarily
-        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.show()
         
-        # Clear the stay on top flag after a brief delay
-        QTimer.singleShot(100, lambda: self._clear_top_flag())
-        
-        # Force activation and raise
         self.activateWindow()
         self.raise_()
+        # Clear the stay on top flag after a brief delay
+        # QTimer.singleShot(100, lambda: self._clear_top_flag())
+        
+        # Force activation and raise
         # self.showFullScreen()
 
     # Add this method to the FullScreenBlinkApp class in display.py
