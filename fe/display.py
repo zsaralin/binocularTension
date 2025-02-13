@@ -91,7 +91,7 @@ class FullScreenBlinkApp(QWidget):
         # self.setFocus(Qt.OtherFocusReason)  # Give this window keyboard focus
         # self.setWindowState(self.windowState() | ~Qt.WindowMinimized | Qt.WindowActive)  # Bring window to front
         # self.raise_()
-        self._bring_to_front()
+        
 
         # Cheating way of activating all of the config settings which currently only activate at 
         self.toggle_control_panel()
@@ -102,6 +102,8 @@ class FullScreenBlinkApp(QWidget):
         self.socket_service = SocketListenerService()
         self.socket_service.value_received.connect(self.handle_frontend_update)
         self.socket_service.start()
+
+        self._bring_to_front()
         
     def load_images(self):
         for folder_key, folder_path in self.image_folders.items():
@@ -404,22 +406,19 @@ class FullScreenBlinkApp(QWidget):
         
         # Set window flags to stay on top temporarily
         # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint | Qt.Tool)
-        # self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
         self.setFocusPolicy(Qt.StrongFocus)
         self.show()
         
         self.activateWindow()
         self.raise_()
+        self.showFullScreen()
         # Clear the stay on top flag after a brief delay
-        # QTimer.singleShot(100, lambda: self._clear_top_flag())
-
-
-    # Add this method to the FullScreenBlinkApp class in display.py
+        QTimer.singleShot(100, lambda: self._clear_top_flag())
         
         # Additional focus request
         QTimer.singleShot(200, self.activateWindow)
 
-    # Add this method to the FullScreenBlinkApp class in display.py
 
     def _clear_top_flag(self):
         """Clear the stay on top flag."""
