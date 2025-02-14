@@ -13,6 +13,8 @@ from pynput import keyboard
 from frontend_controls_tab import FrontendControlsTab
 from slider_value_handler import SliderValueHandler
 
+from preset_listener_service import PresetListenerService
+
 class KeySignalEmitter(QObject):
     """Signal emitter for global keyboard events.
     
@@ -38,6 +40,9 @@ class ControlPanelWidget(QWidget):
         self.live_config = LiveConfig.get_instance()
         self.cube_manager = CubeManager.get_instance()
         self.window_front = False
+
+        self.preset_listener = PresetListenerService()
+        self.preset_listener.start()
 
         # Configuration initialization
         self._initialize_configuration()
@@ -197,6 +202,7 @@ class ControlPanelWidget(QWidget):
         """
         self.listener_thread.quit()
         self.listener_thread.wait()
+        self.preset_listener.stop()
         super().closeEvent(event)
 
     def load_config(self):
