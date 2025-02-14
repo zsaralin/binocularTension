@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QHBoxLayout
 from PyQt5.QtCore import Qt, QEvent
 
+from preset_manager import PresetManager
+
 class VersionControlPanel(QWidget):
     """
     Control panel for version selection and management.
@@ -76,34 +78,26 @@ class VersionControlPanel(QWidget):
         nervous_button = QPushButton("Nervous")
         nervous_button.clicked.connect(lambda: self.apply_preset("nervous"))
 
-        medium_button = QPushButton("Medium")
-        nervous_button.clicked.connect(lambda: self.apply_preset("medium"))
+        stable_button = QPushButton("Stable")
+        stable_button.clicked.connect(lambda: self.apply_preset("stable"))
 
         calm_button = QPushButton("Calm")
-        nervous_button.clicked.connect(lambda: self.apply_preset("calm"))
+        calm_button.clicked.connect(lambda: self.apply_preset("calm"))
 
         preset_layout.addWidget(nervous_button)
-        preset_layout.addWidget(medium_button)
+        preset_layout.addWidget(stable_button)
         preset_layout.addWidget(calm_button)
-
-        # fair_button = QPushButton("Fair")
-        # fair_button.clicked.connect(self.set_fair_preset)
-        
-        # home_button = QPushButton("Home")
-        # home_button.clicked.connect(self.set_home_preset)
-
-        # museum_button = QPushButton("Museum")
-        # museum_button.clicked.connect(self.set_museum_preset)
-        
-        # preset_layout.addWidget(fair_button)
-        # preset_layout.addWidget(museum_button)
-        # preset_layout.addWidget(home_button)
         
         layout.addLayout(preset_layout)
         self.setLayout(layout)
 
     def apply_preset(self, preset_name: str):
-        print(f"Applying preset: {preset_name}")
+        # print(f"Applying preset: {preset_name}")
+        with PresetManager() as pm:
+            preset_data = pm.load_preset(f"presets/{preset_name}.json")
+            if preset_data:
+                # pm.print_preset(preset_data)
+                pm.apply_preset(preset_data)
 
     def closeEvent(self, event):
         """
