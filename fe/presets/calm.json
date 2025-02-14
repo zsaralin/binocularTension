@@ -1,25 +1,15 @@
 {
-    "backend": {
-      "movement": {
-        "min_contour_area": 500,
-        "movement_thres": 8,
-        "headpoint_smoothing": 0.7,
-        "active_object_stick_time": 3,
-        "conf_thres": 0.3,
-        "stationary_timeout": 20,
-        "roi_filter_dur": 10
-      },
-      "smoothing": {
-        "stable_thres_x": 8,
-        "stable_thres_y": 8  
-      },
-      "thresholds": {
-        "x_threshold_min": -8,
-        "x_threshold_max": 8,
-        "y_threshold_min": -3,
-        "y_threshold_max": 30,
-        "z_threshold_min": -6,
-        "z_threshold_max": -4
-      }
-    }
+  "backend": {
+    "headpoint_smoothing": 0.7
+  },
+
+  "frontend": {
+    "nervousness": 0.5,
+    "min_blink_interval": 5,
+    "max_blink_interval": 10,
+    "min_sleep_timeout": 30,
+    "max_sleep_timeout": 120,
+    "auto_switch_interval_low": 0.4,
+    "auto_switch_interval_high": 0.8
   }
+}

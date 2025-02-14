@@ -1,0 +1,15 @@
+{
+  "backend": {
+    "headpoint_smoothing": 0.7
+  },
+
+  "frontend": {
+    "nervousness": 0.7,
+    "min_blink_interval": 3,
+    "max_blink_interval": 8,
+    "min_sleep_timeout": 20,
+    "max_sleep_timeout": 60,
+    "auto_switch_interval_low": 0.2,
+    "auto_switch_interval_high": 0.4
+  }
+}
