@@ -15,6 +15,8 @@ from slider_value_handler import SliderValueHandler
 
 from preset_listener_service import PresetListenerService
 
+from enhanced_slider import EnhancedSlider
+
 
 class KeySignalEmitter(QObject):
     """Signal emitter for global keyboard events.
@@ -57,43 +59,82 @@ class ControlPanelWidget(QWidget):
         self._init_global_key_listener()
 
     def update_from_live_config(self):
-        """
-        Update all GUI elements to reflect current LiveConfig values.
+        """Update UI elements from LiveConfig while preventing feedback loops."""
+        print("\nStarting update_from_live_config")
+        print("Current LiveConfig values:")
+        self.live_config.print_config()
         
-        This method synchronizes the GUI state with the LiveConfig singleton,
-        ensuring threshold values and other settings are properly preserved
-        during updates.
-        """
-        # Store original threshold values before update
-        original_thresholds = self.thresholds.copy() if hasattr(self, 'thresholds') else None
+        # First update internal lists from LiveConfig
+        self._update_internal_lists()
         
-        # Update rotation values
+        print("\nAfter _update_internal_lists:")
+        print(f"Thresholds array: {self.thresholds}")
+        
+        # Update all slider groups using programmatic updates
+        for hbox in self.findChildren(QHBoxLayout):
+            widgets = [hbox.itemAt(i).widget() for i in range(hbox.count()) if hbox.itemAt(i)]
+            
+            if len(widgets) == 4:  # Label + Slider + ValueLabel + LineEdit
+                label, slider, value_label, line_edit = widgets
+                if isinstance(slider, EnhancedSlider):
+                    label_text = label.text()
+                    value = self._get_value_from_label(label_text)
+                    
+                    if value is not None:
+                        step = self._get_step_for_label(label_text)
+                        print(f"\nUpdating slider for {label_text}:")
+                        print(f"Original value: {value}")
+                        print(f"Step size: {step}")
+                        
+                        # Determine appropriate decimal places based on step size
+                        if step < 1:
+                            decimals = 1 if step == 0.1 else 2 if step == 0.01 else 3
+                        else:
+                            decimals = 0
+                        
+                        print(f"Using {decimals} decimal places")
+                        display_value = f"{value:.{decimals}f}"
+                        print(f"Formatted display value: {display_value}")
+                        
+                        # Update slider using float value
+                        slider.set_value_programmatically(value)
+                        
+                        # Update displays with properly formatted value
+                        value_label.setText(display_value)
+                        line_edit.setText(display_value)
+                        
+                        print(f"Final value in slider: {slider.get_float_value()}")
+                        print(f"Final value in text box: {line_edit.text()}")
+
+    def _update_internal_lists(self):
+        """
+        Update internal lists from LiveConfig values.
+        
+        This method synchronizes all internal state lists with current LiveConfig values
+        without triggering any UI updates or change handlers.
+        """
+        # Rotation values
         if hasattr(self, 'rotation'):
             self.rotation[0] = self.live_config.rotate_x
             self.rotation[1] = self.live_config.rotate_y
             self.rotation[2] = self.live_config.rotate_z
-                
-        # Update translation values
+            
+        # Translation values
         if hasattr(self, 'translation'):
             self.translation[0] = self.live_config.translate_x
             self.translation[1] = self.live_config.translate_y
             self.translation[2] = self.live_config.translate_z
-                
-        # Update threshold values with type checking
+            
+        # Threshold values
         if hasattr(self, 'thresholds'):
-            for i, attr in enumerate(['x_threshold_min', 'x_threshold_max', 
-                                    'y_threshold_min', 'y_threshold_max',
-                                    'z_threshold_min', 'z_threshold_max']):
-                if hasattr(self.live_config, attr):
-                    new_val = getattr(self.live_config, attr)
-                    # Only update if new value is valid
-                    if isinstance(new_val, (int, float)) and new_val != 0:
-                        self.thresholds[i] = float(new_val)
-                    else:
-                        # Preserve original value if new value is invalid
-                        self.thresholds[i] = original_thresholds[i]
-                
-        # Update divider values
+            self.thresholds[0] = self.live_config.x_threshold_min
+            self.thresholds[1] = self.live_config.x_threshold_max
+            self.thresholds[2] = self.live_config.y_threshold_min
+            self.thresholds[3] = self.live_config.y_threshold_max
+            self.thresholds[4] = self.live_config.z_threshold_min
+            self.thresholds[5] = self.live_config.z_threshold_max
+            
+        # Divider values
         if hasattr(self, 'divider'):
             self.divider[0] = self.live_config.camera_z
             self.divider[1] = self.live_config.y_top_divider
@@ -102,8 +143,8 @@ class ControlPanelWidget(QWidget):
             self.divider[4] = self.live_config.y_top_divider_angle
             self.divider[5] = self.live_config.y_bottom_divider_angle
             self.divider[6] = self.live_config.draw_planes
-                
-        # Update movement values
+            
+        # Movement values
         if hasattr(self, 'movement'):
             self.movement[0] = self.live_config.min_contour_area
             self.movement[1] = self.live_config.movement_thres
@@ -112,51 +153,24 @@ class ControlPanelWidget(QWidget):
             self.movement[4] = self.live_config.conf_thres
             self.movement[5] = self.live_config.stationary_timeout
             self.movement[6] = self.live_config.roi_filter_dur
-                
-        # Update smoothing values
+            
+        # Smoothing values
         if hasattr(self, 'smoothing'):
             self.smoothing[0] = self.live_config.stable_x_thres
             self.smoothing[1] = self.live_config.stable_y_thres
-                
-        # Update point size and divisions
+            
+        # Point size
         if hasattr(self, 'point_size'):
             self.point_size[0] = self.live_config.point_size
-                
+            
+        # Number of divisions
         if hasattr(self, 'num_divisions'):
             self.num_divisions[0] = self.live_config.num_divisions
-                
-        # Update detection type flags
+            
+        # Detection type
         if hasattr(self, 'detection_type'):
             self.detection_type[0] = self.live_config.detect_people
             self.detection_type[1] = self.live_config.detect_objects
-
-        # Update all slider groups in the UI
-        for hbox in self.findChildren(QHBoxLayout):
-            widgets = [hbox.itemAt(i).widget() for i in range(hbox.count()) if hbox.itemAt(i)]
-                
-            if len(widgets) == 4:  # Label + Slider + ValueLabel + LineEdit
-                label, slider, value_label, line_edit = widgets
-                if isinstance(label, QLabel) and isinstance(slider, QSlider):
-                    label_text = label.text()
-                    value = self._get_value_from_label(label_text)
-                    if value is not None:
-                        step = self._get_step_for_label(label_text)
-                        # Scale value for slider 
-                        scaled_value = int(value / step)
-                        slider.setValue(scaled_value)
-                        # Update value displays
-                        display_value = f"{value:.2f}" if step < 1 else f"{int(value)}"
-                        value_label.setText(display_value)
-                        line_edit.setText(display_value)
-
-        # Update checkboxes
-        for checkbox in self.findChildren(QCheckBox):
-            if checkbox.text() == "Draw Planes":
-                checkbox.setChecked(self.live_config.draw_planes)
-            elif checkbox.text() == "Detect Yolo Objects":
-                checkbox.setChecked(self.live_config.detect_people)
-            elif checkbox.text() == "Detect Other Objects":
-                checkbox.setChecked(self.live_config.detect_objects)
 
     def _get_value_from_label(self, label_text):
         """
@@ -207,20 +221,38 @@ class ControlPanelWidget(QWidget):
         """
         Get the step size for a slider based on its label.
         
-        @param label_text: The text label of the slider
-        @return: Step size for the slider (default: 1)
+        Args:
+            label_text: The text label of the slider
+            
+        Returns:
+            float: Step size for the slider
         """
         # Map of labels to their step sizes
         step_map = {
+            # Translation controls
             "Trans X": 0.01,
             "Trans Y": 0.01,
             "Trans Z": 0.01,
+            
+            # Divider controls
             "Top Y Divider": 0.01,
             "Bottom Y Divider": 0.01,
+            
+            # Threshold controls
+            "X Min": 0.1,
+            "X Max": 0.1,
+            "Y Min": 0.1,
+            "Y Max": 0.1,
+            "Z Min": 0.1,
+            "Z Max": 0.1,
+            
+            # Other decimal controls
             "Headpoint Smoothing": 0.1,
-            "Conf Thres": 0.1
+            "Conf Thres": 0.1,
+            "Nervousness": 0.1
         }
-        return step_map.get(label_text, 1)
+        
+        return step_map.get(label_text, 1)  # Default to 1 if not in map
                 
     def _get_value_for_slider(self, slider_name):
         """
@@ -602,50 +634,53 @@ class ControlPanelWidget(QWidget):
 
     def _create_slider_group(self, layout, label_text, index, min_val, max_val, target_list, list_index, step=1):
         """
-        Create a slider group with label, slider, and input field.
+        Create a slider group with precise float handling.
         
-        @param layout: Layout to add the slider group to
-        @param label_text: Text label for the slider
-        @param index: Index for value updates
-        @param min_val: Minimum value
-        @param max_val: Maximum value
-        @param target_list: List containing the target value
-        @param list_index: Index in the target list
-        @param step: Step size for value changes (default: 1)
+        Args:
+            layout: Layout to add the slider group to
+            label_text: Text label for the slider
+            index: Index for value updates
+            min_val: Minimum allowed value
+            max_val: Maximum allowed value
+            target_list: List containing the target value
+            list_index: Index in the target list
+            step: Step size for value changes
         """
         hbox = QHBoxLayout()
         
-        # Convert current value to slider position
-        current_value = target_list[list_index]
-        slider_pos = self.value_handler.to_slider_value(current_value, step)
-        
-        # Convert min/max to slider positions
-        slider_min = self.value_handler.to_slider_value(min_val, step)
-        slider_max = self.value_handler.to_slider_value(max_val, step)
-        
         # Create UI elements
         label = QLabel(label_text)
-        slider = QSlider(Qt.Horizontal)
-        slider.setRange(slider_min, slider_max)
-        slider.setValue(slider_pos)
+        slider = EnhancedSlider(Qt.Horizontal)
         
-        # Format display value
-        display_value = self.value_handler.format_display_value(current_value, step)
+        # Calculate slider positions (scaled by step size)
+        scale_factor = int(1 / step) if step < 1 else 1
+        slider.setRange(int(min_val * scale_factor), int(max_val * scale_factor))
+        
+        current_value = target_list[list_index]
+        slider.setValue(int(current_value * scale_factor))
+        
+        # Determine decimal places based on step size
+        decimals = 1 if step == 0.1 else 2 if step == 0.01 else 0
+        display_value = f"{current_value:.{decimals}f}"
+        
         value_label = QLabel(display_value)
         input_field = QLineEdit(display_value)
         input_field.setFixedWidth(50)
 
         def on_slider_changed(slider_pos):
             """Handle slider value changes."""
-            # Convert slider position to actual value
-            actual_value = self.value_handler.from_slider_value(slider_pos, step)
+            if slider.is_programmatic_update:
+                return
+                
+            # Convert slider position back to actual value
+            actual_value = slider_pos / scale_factor
+            formatted_value = f"{actual_value:.{decimals}f}"
             
             # Update displays
-            formatted_value = self.value_handler.format_display_value(actual_value, step)
             value_label.setText(formatted_value)
             input_field.setText(formatted_value)
             
-            # Store actual value
+            # Update target list and live config
             target_list[list_index] = actual_value
             self.update_value(index, target_list, actual_value, step)
 
@@ -654,10 +689,7 @@ class ControlPanelWidget(QWidget):
             try:
                 input_value = float(input_field.text())
                 if min_val <= input_value <= max_val:
-                    # Convert input to slider position
-                    slider_pos = self.value_handler.to_slider_value(input_value, step)
-                    slider.setValue(slider_pos)
-                    # Store the actual value
+                    slider.setValue(int(input_value * scale_factor))
                     target_list[list_index] = input_value
                     self.update_value(index, target_list, input_value, step)
             except ValueError:
