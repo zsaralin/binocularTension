@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         # Set window title and a minimum initial size
-        self.setWindowTitle("Point Cloud Viewer with RGB Camera, Control Panel, and Legends")
+        self.setWindowTitle("Binocular Tension v1.02 - Main GUI")
         self.setMinimumSize(1920, 600)  # Starting minimum size to fit layout well
 
         # Center the window on the screen

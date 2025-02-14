@@ -26,7 +26,7 @@ class VersionControlPanel(QWidget):
         self.version_selector = version_selector
         
         # Set window properties
-        self.setWindowTitle("Binocular Tension v1.00 - User GUI")
+        self.setWindowTitle("Binocular Tension v1.02 - User GUI")
         
         # Install event filter to capture key events
         self.installEventFilter(self)
