@@ -1,72 +1,9 @@
-# # live_config.py
-# class LiveConfig:
-#     _instance = None
-
-#     def __new__(cls):
-#         if not cls._instance:
-#             cls._instance = super(LiveConfig, cls).__new__(cls)
-#             # Initialize live values with defaults
-#             cls._instance.reset_to_defaults()
-#         return cls._instance
-
-#     def reset_to_defaults(self):
-#         self.version = "Brown"
-#         self.rotate_x = 0
-#         self.rotate_y = 0
-#         self.rotate_z = 0
-#         self.translate_x = 0
-#         self.translate_y = 0
-#         self.translate_z = 0
-#         self.camera_z = 0
-#         self.y_top_divider = 0
-#         self.y_top_divider_angle = 0
-#         self.y_bottom_divider = 0
-#         self.y_bottom_divider_angle = 0
-#         self.x_divider_angle = 0
-#         self.draw_planes = True
-#         self.min_contour_area = 200  # Default for minimum contour area
-#         self.movement_thres = 2  # Default threshold for person movement
-#         self.active_object_stick_time = 3,
-#         self.conf_thres = 0.1,
-#         self.stationary_timeout = 20,
-#         self.roi_filter_dur = 10, 
-#         self.headpoint_smoothing = 0.5
-#         self.point_size = 1
-#         self.num_divisions = 40
-#         self.history = 1000  # Background subtractor history
-#         self.varthreshold = 30  # Background subtractor variance threshold
-#         self.threshold_value = 200  # Threshold for binary mask
-#         self.morph_kernel_size = 3  # Morphological kernel size
-#         self.merge_distance = 50  # Distance for merging boxes
-#         self.z_threshold_min = 0
-#         self.z_threshold_max = 6.0
-#         self.x_threshold_min = 0
-#         self.x_threshold_max = 0
-#         self.y_threshold_min = 0
-#         self.y_threshold_max = 0
-#         self.stable_x_thres = 0
-#         self.stable_y_thres = 0
-#         self.detect_people = True
-#         self.detect_objects = True
-
-#         # Plane visibility flags
-#         self.show_vertical_planes = True
-#         self.show_top_plane = True
-#         self.show_bottom_plane = True
-
-        
-#     # Accessor for the singleton instance
-#     @classmethod
-#     def get_instance(cls):
-#         return cls._instance or cls()
-
-
 """
-LiveConfig module providing runtime configuration management for binocular tension system.
+LiveConfig module providing runtime configuration management.
 
-This module implements a thread-safe singleton configuration manager that maintains
-all runtime settings for the display and tracking system. It provides type-safe
-access to configuration values with validation.
+This module implements a thread-safe singleton configuration manager that maintains 
+all runtime settings. It provides initialization from config files with fallback defaults
+and type-safe access to configuration values.
 
 Example:
     config = LiveConfig.get_instance()
@@ -74,34 +11,83 @@ Example:
     current_speed = config.blink_speed  # Retrieves current setting
 """
 
-# live_config.py
+import json
+import os
+import logging
+from typing import Dict, Any, Optional
 
 class LiveConfig:
-    """
-    Thread-safe singleton configuration manager for runtime settings.
-    
-    Maintains a single instance of configuration parameters used throughout
-    the binocular tension system. Provides default values and ensures
-    consistency across all components.
-    """
+    """Thread-safe singleton configuration manager for runtime settings."""
     
     _instance = None
+    _config_file = "config.json"
+    _logger = logging.getLogger(__name__)
 
     def __new__(cls):
-        """
-        Create or return the singleton instance.
-        
-        Returns:
-            LiveConfig: The singleton configuration instance
-        """
+        """Create or return the singleton instance with proper initialization."""
         if not cls._instance:
             cls._instance = super(LiveConfig, cls).__new__(cls)
-            # Initialize live values with defaults
-            cls._instance.reset_to_defaults()
+            # Set up logging
+            if not cls._logger.handlers:
+                handler = logging.StreamHandler()
+                formatter = logging.Formatter(
+                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+                )
+                handler.setFormatter(formatter)
+                cls._logger.addHandler(handler)
+            
+            # Initialize the instance
+            cls._instance._initialize()
         return cls._instance
+
+    def _initialize(self):
+        """Initialize configuration with defaults then load from file if available."""
+        # First set defaults
+        self.reset_to_defaults()
+        
+        # Then try to load from config file
+        self._load_from_file()
+        print("Config initialized")
+        print('\n')
+        print('\n')
+        print('\n')
+        print('\n')
+        print('\n')
+        self.print_config()
+        print('\n')
+        print('\n')
+        print('\n')
+        print('\n')
+        print('\n')
+
+    def _load_from_file(self):
+        """Load configuration from file, updating only existing attributes."""
+        if not os.path.exists(self._config_file):
+            self._logger.info(f"No config file found at {self._config_file}, using defaults")
+            return
+
+        try:
+            with open(self._config_file, 'r') as f:
+                config_data = json.load(f)
+
+            # Update only existing attributes
+            for key, value in config_data.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+                    self._logger.debug(f"Loaded config value: {key}={value}")
+                else:
+                    self._logger.warning(f"Unknown config key in file: {key}")
+
+            self._logger.info("Successfully loaded configuration from file")
+
+        except json.JSONDecodeError as e:
+            self._logger.error(f"Error parsing config file: {e}")
+        except Exception as e:
+            self._logger.error(f"Error loading config: {e}")
 
     def reset_to_defaults(self):
         """Reset all configuration values to their defaults."""
+        # Backend settings
         self.version = "Female"
         self.rotate_x = 0
         self.rotate_y = 0
@@ -116,8 +102,8 @@ class LiveConfig:
         self.y_bottom_divider_angle = 0
         self.x_divider_angle = 0
         self.draw_planes = True
-        self.min_contour_area = 200  # Default for minimum contour area
-        self.movement_thres = 2  # Default threshold for person movement
+        self.min_contour_area = 200
+        self.movement_thres = 2
         self.active_object_stick_time = 3
         self.conf_thres = 0.1
         self.stationary_timeout = 20
@@ -125,34 +111,73 @@ class LiveConfig:
         self.headpoint_smoothing = 0.5
         self.point_size = 1
         self.num_divisions = 40
-        self.history = 1000  # Background subtractor history
-        self.varthreshold = 30  # Background subtractor variance threshold
-        self.threshold_value = 200  # Threshold for binary mask
-        self.morph_kernel_size = 3  # Morphological kernel size
-        self.merge_distance = 50  # Distance for merging boxes
+        self.history = 1000
+        self.varthreshold = 30
+        self.threshold_value = 200
+        self.morph_kernel_size = 3
+        self.merge_distance = 50
         self.z_threshold_min = 0
         self.z_threshold_max = 6.0
         self.x_threshold_min = 0
         self.x_threshold_max = 0
         self.y_threshold_min = 0
         self.y_threshold_max = 0
-        # Changed from float to int for deque maxlen
-        self.stable_x_thres = 10  # Integer value for deque maxlen
-        self.stable_y_thres = 10  # Integer value for deque maxlen
+        self.stable_x_thres = 10
+        self.stable_y_thres = 10
         self.detect_people = True
         self.detect_objects = True
+
+        # Frontend settings
+        self.min_blink_interval = 3.0
+        self.max_blink_interval = 8.0
+        self.min_sleep_timeout = 10.0
+        self.max_sleep_timeout = 12.0
+        self.min_random_wakeup = 35.0
+        self.max_random_wakeup = 65.0
+        self.blink_speed = 5.0
+        self.jitter_start_delay = 0.5
+        self.large_jitter_start_delay = 60.0
+        self.min_jitter_interval = 3.0
+        self.max_jitter_interval = 6.0
+        self.min_jitter_speed = 500.0
+        self.max_jitter_speed = 800.0
+        self.display_off_timeout = 2.0
+        self.stretch_x = 1.0
+        self.stretch_y = 1.0
+        self.smooth_y = 10.0
+        self.rotate = 0.0
+        self.nervousness = 0.8
 
         # Plane visibility flags
         self.show_vertical_planes = True
         self.show_top_plane = True
         self.show_bottom_plane = True
-        
+
+    def save_config(self):
+        """Save current configuration to file."""
+        config_data = {
+            attr: getattr(self, attr) 
+            for attr in dir(self) 
+            if not attr.startswith('_') and not callable(getattr(self, attr))
+        }
+
+        try:
+            with open(self._config_file, 'w') as f:
+                json.dump(config_data, f, indent=4)
+            self._logger.info("Configuration saved successfully")
+        except Exception as e:
+            self._logger.error(f"Error saving configuration: {e}")
+
+    def print_config(self):
+        """Print current configuration values."""
+        # self._logger.info("Current configuration:")
+        print("Current configuration:")
+        for attr in dir(self):
+            if not attr.startswith('_') and not callable(getattr(self, attr)):
+                # self._logger.info(f"{attr}={getattr(self, attr)}")
+                print(f"{attr}={getattr(self, attr)}")
+
     @classmethod
     def get_instance(cls):
-        """
-        Get or create the singleton instance.
-        
-        Returns:
-            LiveConfig: The singleton configuration instance
-        """
+        """Get or create the singleton instance."""
         return cls._instance or cls()
