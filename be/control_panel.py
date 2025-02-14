@@ -42,6 +42,7 @@ class ControlPanelWidget(QWidget):
         self.window_front = False
 
         self.preset_listener = PresetListenerService()
+        self.preset_listener.value_received.connect(self.update_from_live_config)
         self.preset_listener.start()
 
         # Configuration initialization
@@ -53,6 +54,246 @@ class ControlPanelWidget(QWidget):
         
         # Global key listener setup
         self._init_global_key_listener()
+
+    def update_from_live_config(self):
+        """
+        Update all GUI elements to reflect current LiveConfig values.
+        
+        This method synchronizes the GUI state with the LiveConfig singleton,
+        updating all sliders, checkboxes, and input fields to match the current
+        configuration values. The method finds all QHBoxLayouts containing QSliders
+        and updates them based on their label text.
+        """
+        # First update our internal lists from LiveConfig
+        if hasattr(self, 'rotation'):
+            self.rotation[0] = self.live_config.rotate_x
+            self.rotation[1] = self.live_config.rotate_y
+            self.rotation[2] = self.live_config.rotate_z
+            
+        if hasattr(self, 'translation'):
+            self.translation[0] = self.live_config.translate_x
+            self.translation[1] = self.live_config.translate_y
+            self.translation[2] = self.live_config.translate_z
+            
+        if hasattr(self, 'thresholds'):
+            self.thresholds[0] = self.live_config.x_threshold_min
+            self.thresholds[1] = self.live_config.x_threshold_max
+            self.thresholds[2] = self.live_config.y_threshold_min
+            self.thresholds[3] = self.live_config.y_threshold_max
+            self.thresholds[4] = self.live_config.z_threshold_min
+            self.thresholds[5] = self.live_config.z_threshold_max
+            
+        if hasattr(self, 'divider'):
+            self.divider[0] = self.live_config.camera_z
+            self.divider[1] = self.live_config.y_top_divider
+            self.divider[2] = self.live_config.y_bottom_divider
+            self.divider[3] = self.live_config.x_divider_angle
+            self.divider[4] = self.live_config.y_top_divider_angle
+            self.divider[5] = self.live_config.y_bottom_divider_angle
+            self.divider[6] = self.live_config.draw_planes
+            
+        if hasattr(self, 'movement'):
+            self.movement[0] = self.live_config.min_contour_area
+            self.movement[1] = self.live_config.movement_thres
+            self.movement[2] = self.live_config.headpoint_smoothing
+            self.movement[3] = self.live_config.active_object_stick_time
+            self.movement[4] = self.live_config.conf_thres
+            self.movement[5] = self.live_config.stationary_timeout
+            self.movement[6] = self.live_config.roi_filter_dur
+            
+        if hasattr(self, 'smoothing'):
+            self.smoothing[0] = self.live_config.stable_x_thres
+            self.smoothing[1] = self.live_config.stable_y_thres
+            
+        if hasattr(self, 'point_size'):
+            self.point_size[0] = self.live_config.point_size
+            
+        if hasattr(self, 'num_divisions'):
+            self.num_divisions[0] = self.live_config.num_divisions
+            
+        if hasattr(self, 'detection_type'):
+            self.detection_type[0] = self.live_config.detect_people
+            self.detection_type[1] = self.live_config.detect_objects
+
+        # Update all slider groups in the UI
+        # Each slider group is in a QHBoxLayout containing a QLabel, QSlider, QLabel, QLineEdit
+        for hbox in self.findChildren(QHBoxLayout):
+            # Get all widgets in this horizontal layout
+            widgets = [hbox.itemAt(i).widget() for i in range(hbox.count()) if hbox.itemAt(i)]
+            
+            # Look for layouts matching our slider group pattern
+            if len(widgets) == 4:  # Label + Slider + ValueLabel + LineEdit
+                label, slider, value_label, line_edit = widgets
+                if isinstance(label, QLabel) and isinstance(slider, QSlider):
+                    label_text = label.text()
+                    # Find the correct list and index based on the label text
+                    value = self._get_value_from_label(label_text)
+                    if value is not None:
+                        step = self._get_step_for_label(label_text)
+                        # Scale value for slider 
+                        scaled_value = int(value / step)
+                        slider.setValue(scaled_value)
+                        # Update value displays
+                        display_value = f"{value:.2f}" if step < 1 else f"{int(value)}"
+                        value_label.setText(display_value)
+                        line_edit.setText(display_value)
+
+        # Update checkboxes
+        for checkbox in self.findChildren(QCheckBox):
+            if checkbox.text() == "Draw Planes":
+                checkbox.setChecked(self.live_config.draw_planes)
+            elif checkbox.text() == "Detect Yolo Objects":
+                checkbox.setChecked(self.live_config.detect_people)
+            elif checkbox.text() == "Detect Other Objects":
+                checkbox.setChecked(self.live_config.detect_objects)
+
+    def _get_value_from_label(self, label_text):
+        """
+        Get the appropriate value based on the slider's label text.
+        
+        @param label_text: The text label of the slider
+        @return: The current value for that control or None if not found
+        """
+        # Map of label texts to their corresponding list and index
+        label_map = {
+            "Rot X": (self.rotation, 0),
+            "Rot Y": (self.rotation, 1),
+            "Rot Z": (self.rotation, 2),
+            "Trans X": (self.translation, 0),
+            "Trans Y": (self.translation, 1),
+            "Trans Z": (self.translation, 2),
+            "X Min": (self.thresholds, 0),
+            "X Max": (self.thresholds, 1),
+            "Y Min": (self.thresholds, 2),
+            "Y Max": (self.thresholds, 3),
+            "Z Min": (self.thresholds, 4),
+            "Z Max": (self.thresholds, 5),
+            "Camera Z": (self.divider, 0),
+            "Top Y Divider": (self.divider, 1),
+            "Bottom Y Divider": (self.divider, 2),
+            "X Divider Angle": (self.divider, 3),
+            "Top Y Divider Angle": (self.divider, 4),
+            "Bottom Y Divider Angle": (self.divider, 5),
+            "Min Contour Area": (self.movement, 0),
+            "Movement Threshold": (self.movement, 1),
+            "Headpoint Smoothing": (self.movement, 2),
+            "Active Object Stick Time": (self.movement, 3),
+            "Conf Thres": (self.movement, 4),
+            "Stationary Timeout": (self.movement, 5),
+            "ROI Filter Dur": (self.movement, 6),
+            "X Thres": (self.smoothing, 0),
+            "Y Thres": (self.smoothing, 1),
+            "Point Size": (self.point_size, 0),
+            "Num Divisions": (self.num_divisions, 0)
+        }
+        
+        if label_text in label_map:
+            target_list, index = label_map[label_text]
+            return target_list[index]
+        return None
+
+    def _get_step_for_label(self, label_text):
+        """
+        Get the step size for a slider based on its label.
+        
+        @param label_text: The text label of the slider
+        @return: Step size for the slider (default: 1)
+        """
+        # Map of labels to their step sizes
+        step_map = {
+            "Trans X": 0.01,
+            "Trans Y": 0.01,
+            "Trans Z": 0.01,
+            "Top Y Divider": 0.01,
+            "Bottom Y Divider": 0.01,
+            "Headpoint Smoothing": 0.1,
+            "Conf Thres": 0.1
+        }
+        return step_map.get(label_text, 1)
+                
+    def _get_value_for_slider(self, slider_name):
+        """
+        Get the current value for a slider from its corresponding list.
+        
+        @param slider_name: Name of the slider to look up
+        @return: Current value for the slider or None if not found
+        """
+        # Map slider names to their corresponding list and index
+        value_maps = {
+            'rotate_x': (self.rotation, 0),
+            'rotate_y': (self.rotation, 1),
+            'rotate_z': (self.rotation, 2),
+            'translate_x': (self.translation, 0),
+            'translate_y': (self.translation, 1),
+            'translate_z': (self.translation, 2),
+            # Add more mappings as needed
+        }
+        
+        if slider_name in value_maps:
+            target_list, index = value_maps[slider_name]
+            return target_list[index]
+        return None
+        
+    def _get_step_for_slider(self, slider_name):
+        """
+        Get the step size for a slider based on its name.
+        
+        @param slider_name: Name of the slider to look up
+        @return: Step size for the slider (default: 1)
+        """
+        # Map slider names to their step sizes
+        step_maps = {
+            'translate_x': 0.01,
+            'translate_y': 0.01,
+            'translate_z': 0.01,
+            'headpoint_smoothing': 0.1,
+            'conf_thres': 0.1,
+        }
+        
+        return step_maps.get(slider_name, 1)
+    
+                
+    def _get_value_for_slider(self, slider_name):
+        """
+        Get the current value for a slider from its corresponding list.
+        
+        @param slider_name: Name of the slider to look up
+        @return: Current value for the slider or None if not found
+        """
+        # Map slider names to their corresponding list and index
+        value_maps = {
+            'rotate_x': (self.rotation, 0),
+            'rotate_y': (self.rotation, 1),
+            'rotate_z': (self.rotation, 2),
+            'translate_x': (self.translation, 0),
+            'translate_y': (self.translation, 1),
+            'translate_z': (self.translation, 2),
+            # Add more mappings as needed
+        }
+        
+        if slider_name in value_maps:
+            target_list, index = value_maps[slider_name]
+            return target_list[index]
+        return None
+        
+    def _get_step_for_slider(self, slider_name):
+        """
+        Get the step size for a slider based on its name.
+        
+        @param slider_name: Name of the slider to look up
+        @return: Step size for the slider (default: 1)
+        """
+        # Map slider names to their step sizes
+        step_maps = {
+            'translate_x': 0.01,
+            'translate_y': 0.01,
+            'translate_z': 0.01,
+            'headpoint_smoothing': 0.1,
+            'conf_thres': 0.1,
+        }
+        
+        return step_maps.get(slider_name, 1)
+
 
 
 
