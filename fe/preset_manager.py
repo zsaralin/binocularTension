@@ -54,6 +54,9 @@ class PresetManager:
         
         # Initialize socket
         self._init_socket()
+
+        self.auto_switch_interval_low = None
+        self.auto_switch_interval_high = None
         
     def _init_socket(self):
         """Initialize UDP socket for communication."""
@@ -177,6 +180,13 @@ class PresetManager:
             bool: True if value was sent successfully, False otherwise
         """
         try:
+            if variable == "auto_switch_interval_low":
+                self.auto_switch_interval_low = value
+                return True
+            if variable == "auto_switch_interval_high":
+                self.auto_switch_interval_high = value
+                return True
+
             message = {
                 "category": "frontend",
                 "variable": variable,

@@ -98,6 +98,16 @@ class VersionControlPanel(QWidget):
             if preset_data:
                 # pm.print_preset(preset_data)
                 pm.apply_preset(preset_data)
+                if pm.auto_switch_interval_low is not None:
+                    self.version_selector.update_switch_interval_low(pm.auto_switch_interval_low)
+                    self.version_selector.timer_spinbox1.setValue(pm.auto_switch_interval_low)
+                    pm.auto_switch_interval_low = None
+                if pm.auto_switch_interval_high is not None:
+                    self.version_selector.update_switch_interval_high(pm.auto_switch_interval_high)
+                    self.version_selector.timer_spinbox2.setValue(pm.auto_switch_interval_high)
+                    pm.auto_switch_interval_high = None
+
+
 
     def closeEvent(self, event):
         """
