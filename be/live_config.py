@@ -47,18 +47,6 @@ class LiveConfig:
         
         # Then try to load from config file
         self._load_from_file()
-        print("Config initialized")
-        print('\n')
-        print('\n')
-        print('\n')
-        print('\n')
-        print('\n')
-        self.print_config()
-        print('\n')
-        print('\n')
-        print('\n')
-        print('\n')
-        print('\n')
 
     def _load_from_file(self):
         """Load configuration from file, updating only existing attributes."""

@@ -62,7 +62,6 @@ class ControlPanelWidget(QWidget):
         """Update UI elements from LiveConfig while preventing feedback loops."""
         print("\nStarting update_from_live_config")
         print("Current LiveConfig values:")
-        self.live_config.print_config()
         
         # First update internal lists from LiveConfig
         self._update_internal_lists()
