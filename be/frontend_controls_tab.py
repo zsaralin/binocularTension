@@ -90,6 +90,10 @@ class FrontendSliderGroup(SliderGroup):
         # Reconnect the broadcast
         self.slider.valueChanged.connect(self.on_slider_changed_with_broadcast)
 
+
+
+
+
 class FrontendControlsTab(QWidget):
     """
     Frontend controls tab with configuration management.
@@ -99,9 +103,15 @@ class FrontendControlsTab(QWidget):
         sliders (dict): Collection of slider widgets indexed by variable name
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, preset_listener=None, parent=None):
         super().__init__(parent)
         self.sliders = {}
+
+        self.preset_listener = preset_listener
+
+        if preset_listener:
+            preset_listener.frontend_value_received.connect(self.update_slider)
+
         self.init_ui()
         self.load_settings()
 
@@ -363,3 +373,19 @@ class FrontendControlsTab(QWidget):
             self.save_status.setText("Restore Failed!")
             self.save_status.setStyleSheet("color: red")
             QTimer.singleShot(3000, lambda: self.save_status.setText(""))
+
+
+    def update_slider(self, variable_name: str, value: float):
+        """
+        Update a slider's value when a preset value is received.
+        
+        Args:
+            variable_name (str): Name of the slider to update
+            value (float): New value to set
+        """
+        if variable_name in self.sliders:
+            slider_group = self.sliders[variable_name]
+            slider_group.set_value(value)
+            print(f"Updated slider {variable_name} to {value}")
+        else:
+            print(f"No slider found for {variable_name}")

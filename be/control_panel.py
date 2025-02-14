@@ -15,6 +15,7 @@ from slider_value_handler import SliderValueHandler
 
 from preset_listener_service import PresetListenerService
 
+
 class KeySignalEmitter(QObject):
     """Signal emitter for global keyboard events.
     
@@ -42,7 +43,7 @@ class ControlPanelWidget(QWidget):
         self.window_front = False
 
         self.preset_listener = PresetListenerService()
-        self.preset_listener.value_received.connect(self.update_from_live_config)
+        self.preset_listener.backend_value_received.connect(self.update_from_live_config)
         self.preset_listener.start()
 
         # Configuration initialization
@@ -60,29 +61,39 @@ class ControlPanelWidget(QWidget):
         Update all GUI elements to reflect current LiveConfig values.
         
         This method synchronizes the GUI state with the LiveConfig singleton,
-        updating all sliders, checkboxes, and input fields to match the current
-        configuration values. The method finds all QHBoxLayouts containing QSliders
-        and updates them based on their label text.
+        ensuring threshold values and other settings are properly preserved
+        during updates.
         """
-        # First update our internal lists from LiveConfig
+        # Store original threshold values before update
+        original_thresholds = self.thresholds.copy() if hasattr(self, 'thresholds') else None
+        
+        # Update rotation values
         if hasattr(self, 'rotation'):
             self.rotation[0] = self.live_config.rotate_x
             self.rotation[1] = self.live_config.rotate_y
             self.rotation[2] = self.live_config.rotate_z
-            
+                
+        # Update translation values
         if hasattr(self, 'translation'):
             self.translation[0] = self.live_config.translate_x
             self.translation[1] = self.live_config.translate_y
             self.translation[2] = self.live_config.translate_z
-            
+                
+        # Update threshold values with type checking
         if hasattr(self, 'thresholds'):
-            self.thresholds[0] = self.live_config.x_threshold_min
-            self.thresholds[1] = self.live_config.x_threshold_max
-            self.thresholds[2] = self.live_config.y_threshold_min
-            self.thresholds[3] = self.live_config.y_threshold_max
-            self.thresholds[4] = self.live_config.z_threshold_min
-            self.thresholds[5] = self.live_config.z_threshold_max
-            
+            for i, attr in enumerate(['x_threshold_min', 'x_threshold_max', 
+                                    'y_threshold_min', 'y_threshold_max',
+                                    'z_threshold_min', 'z_threshold_max']):
+                if hasattr(self.live_config, attr):
+                    new_val = getattr(self.live_config, attr)
+                    # Only update if new value is valid
+                    if isinstance(new_val, (int, float)) and new_val != 0:
+                        self.thresholds[i] = float(new_val)
+                    else:
+                        # Preserve original value if new value is invalid
+                        self.thresholds[i] = original_thresholds[i]
+                
+        # Update divider values
         if hasattr(self, 'divider'):
             self.divider[0] = self.live_config.camera_z
             self.divider[1] = self.live_config.y_top_divider
@@ -91,7 +102,8 @@ class ControlPanelWidget(QWidget):
             self.divider[4] = self.live_config.y_top_divider_angle
             self.divider[5] = self.live_config.y_bottom_divider_angle
             self.divider[6] = self.live_config.draw_planes
-            
+                
+        # Update movement values
         if hasattr(self, 'movement'):
             self.movement[0] = self.live_config.min_contour_area
             self.movement[1] = self.live_config.movement_thres
@@ -100,33 +112,32 @@ class ControlPanelWidget(QWidget):
             self.movement[4] = self.live_config.conf_thres
             self.movement[5] = self.live_config.stationary_timeout
             self.movement[6] = self.live_config.roi_filter_dur
-            
+                
+        # Update smoothing values
         if hasattr(self, 'smoothing'):
             self.smoothing[0] = self.live_config.stable_x_thres
             self.smoothing[1] = self.live_config.stable_y_thres
-            
+                
+        # Update point size and divisions
         if hasattr(self, 'point_size'):
             self.point_size[0] = self.live_config.point_size
-            
+                
         if hasattr(self, 'num_divisions'):
             self.num_divisions[0] = self.live_config.num_divisions
-            
+                
+        # Update detection type flags
         if hasattr(self, 'detection_type'):
             self.detection_type[0] = self.live_config.detect_people
             self.detection_type[1] = self.live_config.detect_objects
 
         # Update all slider groups in the UI
-        # Each slider group is in a QHBoxLayout containing a QLabel, QSlider, QLabel, QLineEdit
         for hbox in self.findChildren(QHBoxLayout):
-            # Get all widgets in this horizontal layout
             widgets = [hbox.itemAt(i).widget() for i in range(hbox.count()) if hbox.itemAt(i)]
-            
-            # Look for layouts matching our slider group pattern
+                
             if len(widgets) == 4:  # Label + Slider + ValueLabel + LineEdit
                 label, slider, value_label, line_edit = widgets
                 if isinstance(label, QLabel) and isinstance(slider, QSlider):
                     label_text = label.text()
-                    # Find the correct list and index based on the label text
                     value = self._get_value_from_label(label_text)
                     if value is not None:
                         step = self._get_step_for_label(label_text)
@@ -536,7 +547,7 @@ class ControlPanelWidget(QWidget):
         tab_widget.addTab(main_tab, "Backend Controls")
 
         # Frontend controls tab
-        frontend_tab = FrontendControlsTab()
+        frontend_tab = FrontendControlsTab(preset_listener=self.preset_listener)
         tab_widget.addTab(frontend_tab, "Frontend Controls")
 
         main_layout.addWidget(tab_widget)

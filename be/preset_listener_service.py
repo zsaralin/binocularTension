@@ -38,7 +38,8 @@ class PresetListenerService(QThread):
     """
     
     # Signal emitted when a preset value is received
-    value_received = pyqtSignal(str, float)
+    backend_value_received = pyqtSignal(str, float)
+    frontend_value_received = pyqtSignal(str, float)
     
     def __init__(self, port: int = 12346):
         """
@@ -101,6 +102,9 @@ class PresetListenerService(QThread):
                 print(message)
                 if message and message.get("category") == "backend":
                     self._process_backend_values(message)
+
+                elif message and message.get("category") == "frontend":
+                    self._process_frontend_values(message)
                     
             except socket.timeout:
                 continue
@@ -116,20 +120,16 @@ class PresetListenerService(QThread):
         Args:
             backend_values (Dict[str, Any]): Dictionary of backend values to apply
         """
-        print (backend_values.items())
         # iterate over the dictionary and print the key and value
-        for key, value in backend_values.items():
-            print(key, value)
         variable = backend_values.get("variable")
         value = backend_values.get("value")
-        print(variable, value)
 
         try:
             if hasattr(self.live_config, variable):
                 # Update LiveConfig value
                 setattr(self.live_config, variable, value)
                 # Emit signal for any listeners
-                self.value_received.emit(variable, value)
+                self.backend_value_received.emit(variable, value)
                 self.logger.debug(f"Applied preset value: {variable}={value}")
                 print(f"Applied preset value: {variable}={value}")
             else:
@@ -137,6 +137,34 @@ class PresetListenerService(QThread):
         
         except Exception as e:
             self.logger.error(f"Error applying preset value {variable}: {e}")
+
+    def _process_frontend_values(self, frontend_values: Dict[str, Any]):
+        """
+        Process frontend preset values to update GUI sliders.
+        
+        Args:
+            frontend_values (Dict[str, Any]): Dictionary containing:
+                - variable: Name of the frontend setting to update 
+                - value: New value to apply
+        """
+        try:
+            # Get the variable name and value
+            variable = frontend_values.get("variable")
+            value = frontend_values.get("value")
+            
+            # Basic validation
+            if variable is None or value is None:
+                self.logger.error("Missing variable or value in frontend preset")
+                return
+                
+            # Log what we received
+            print(f"Received frontend preset: {variable} = {value}")
+            
+            # Emit signal with the received values
+            self.frontend_value_received.emit(variable, value)
+            
+        except Exception as e:
+            self.logger.error(f"Error in _process_frontend_values: {e}")
                 
     def stop(self):
         """

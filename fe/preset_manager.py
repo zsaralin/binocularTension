@@ -117,6 +117,11 @@ class PresetManager:
                 for key, value in preset_data["backend"].items():
                     if not self._send_backend_value(key, value):
                         success = False
+
+            if "frontend" in preset_data:
+                for key, value in preset_data["frontend"].items():
+                    if not self._send_frontend_value(key, value):
+                        success = False
                         
             if success:
                 self.logger.info("Successfully applied preset")
@@ -159,6 +164,41 @@ class PresetManager:
         except Exception as e:
             self.logger.error(f"Error sending backend value {variable}: {e}")
             return False
+        
+    def _send_frontend_value(self, variable: str, value: Any) -> bool:
+        """
+        Send a value to the frontend through UDP socket.
+        
+        Args:
+            variable (str): Name of the variable to update
+            value (Any): Value to set
+            
+        Returns:
+            bool: True if value was sent successfully, False otherwise
+        """
+        try:
+            message = {
+                "category": "frontend",
+                "variable": variable,
+                "value": value
+            }
+            
+            print(f"Sending frontend value: {variable}={value} to port {self.backend_port}")
+            self.backend_socket.sendto(
+                json.dumps(message).encode(),
+                ('localhost', self.backend_port)
+            )
+            
+            self.logger.debug(f"Sent frontend value: {variable}={value}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error sending frontend value {variable}: {e}")
+            return False
+        
+
+
+        
             
     def close(self):
         """Clean up resources by closing socket."""
