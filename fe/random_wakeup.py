@@ -13,7 +13,6 @@ class RandomWakeupManager:
         """Decide between simple wakeup and look-around wakeup."""
         if self.app_instance.debug_mode_manager.debug_mode or self.in_wakeup or not self.sleep_manager.in_sleep_mode:
             return  # Skip if in wakeup, debug mode, or not in sleep mode
-        print('random wakeup')
         self.in_wakeup = True  # Set in_wakeup to True since we're starting a wakeup
         look_around = random.random() < 0.9
         if look_around:
@@ -27,7 +26,7 @@ class RandomWakeupManager:
 
         random_number = random.randint(0, 40)
         first_letter = random.choice(['c', 'c'])
-        second_letter = 'u' #random.choices(['u', 'd', 's'], weights=[1, 1, 2])[0]
+        second_letter = random.choices(['u', 'd', 's'], weights=[1, 1, 2])[0]
         suffix_open = "o"
         suffix_closed = "c"
         suffix_half_closed = "h"
