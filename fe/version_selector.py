@@ -54,9 +54,9 @@ class VersionSelector:
         version_layout = QHBoxLayout()
 
         # Create and configure radio buttons
-        self.female_radio = QRadioButton("Brown [")
-        self.male_radio = QRadioButton("Blue ]")
-        self.switch_radio = QRadioButton("Auto Switch")
+        self.female_radio = QRadioButton("Blue (Left Arrow)")
+        self.male_radio = QRadioButton("Brown (Right Arrow)")
+        self.switch_radio = QRadioButton("Auto Switch (Up or Down Arrow)")
 
         self.load_config()
         if self.auto_switch_enabled:
