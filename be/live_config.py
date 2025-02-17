@@ -35,6 +35,7 @@ class LiveConfig:
                 )
                 handler.setFormatter(formatter)
                 cls._logger.addHandler(handler)
+                cls._logger.setLevel(logging.DEBUG)  # Enable debug logging
             
             # Initialize the instance
             cls._instance._initialize()
@@ -58,11 +59,22 @@ class LiveConfig:
             with open(self._config_file, 'r') as f:
                 config_data = json.load(f)
 
-            # Update only existing attributes
+            # Map old config keys to new attribute names
+            key_mapping = {
+                'stable_thres_x': 'stable_x_thres',
+                'stable_thres_y': 'stable_y_thres',
+            }
+
+            
+
+            # Update attributes, including mapped keys
             for key, value in config_data.items():
-                if hasattr(self, key):
-                    setattr(self, key, value)
-                    self._logger.debug(f"Loaded config value: {key}={value}")
+                # Check if this is a mapped key
+                mapped_key = key_mapping.get(key, key)
+                
+                if hasattr(self, mapped_key):
+                    old_value = getattr(self, mapped_key)
+                    setattr(self, mapped_key, value)
                 else:
                     self._logger.warning(f"Unknown config key in file: {key}")
 
@@ -110,8 +122,11 @@ class LiveConfig:
         self.x_threshold_max = 0
         self.y_threshold_min = 0
         self.y_threshold_max = 0
-        self.stable_x_thres = 10
-        self.stable_y_thres = 10
+        
+        # Stable thresholds - unified naming
+        self.stable_x_thres = 10  # Main attribute used by code
+        self.stable_y_thres = 10  # Main attribute used by code
+        
         self.detect_people = True
         self.detect_objects = True
 
@@ -143,11 +158,18 @@ class LiveConfig:
 
     def save_config(self):
         """Save current configuration to file."""
-        config_data = {
-            attr: getattr(self, attr) 
-            for attr in dir(self) 
-            if not attr.startswith('_') and not callable(getattr(self, attr))
+        # Reverse key mapping for saving
+        key_mapping = {
+            'stable_x_thres': 'stable_thres_x',
+            'stable_y_thres': 'stable_thres_y',
         }
+
+        config_data = {}
+        for attr in dir(self):
+            if not attr.startswith('_') and not callable(getattr(self, attr)):
+                # Use mapped keys when saving
+                save_key = key_mapping.get(attr, attr)
+                config_data[save_key] = getattr(self, attr)
 
         try:
             with open(self._config_file, 'w') as f:
@@ -158,11 +180,9 @@ class LiveConfig:
 
     def print_config(self):
         """Print current configuration values."""
-        # self._logger.info("Current configuration:")
         print("Current configuration:")
         for attr in dir(self):
             if not attr.startswith('_') and not callable(getattr(self, attr)):
-                # self._logger.info(f"{attr}={getattr(self, attr)}")
                 print(f"{attr}={getattr(self, attr)}")
 
     @classmethod
