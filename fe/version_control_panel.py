@@ -30,6 +30,7 @@ class VersionControlPanel(QWidget):
         
         # Install event filter to capture key events
         self.installEventFilter(self)
+        self.setMinimumWidth(600)
         
         self.init_ui()
 
