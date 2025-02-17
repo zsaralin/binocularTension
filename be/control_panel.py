@@ -60,14 +60,9 @@ class ControlPanelWidget(QWidget):
 
     def update_from_live_config(self):
         """Update UI elements from LiveConfig while preventing feedback loops."""
-        print("\nStarting update_from_live_config")
-        print("Current LiveConfig values:")
         
         # First update internal lists from LiveConfig
         self._update_internal_lists()
-        
-        print("\nAfter _update_internal_lists:")
-        print(f"Thresholds array: {self.thresholds}")
         
         # Update all slider groups using programmatic updates
         for hbox in self.findChildren(QHBoxLayout):
@@ -81,9 +76,6 @@ class ControlPanelWidget(QWidget):
                     
                     if value is not None:
                         step = self._get_step_for_label(label_text)
-                        print(f"\nUpdating slider for {label_text}:")
-                        print(f"Original value: {value}")
-                        print(f"Step size: {step}")
                         
                         # Determine appropriate decimal places based on step size
                         if step < 1:
@@ -91,9 +83,7 @@ class ControlPanelWidget(QWidget):
                         else:
                             decimals = 0
                         
-                        print(f"Using {decimals} decimal places")
                         display_value = f"{value:.{decimals}f}"
-                        print(f"Formatted display value: {display_value}")
                         
                         # Update slider using float value
                         slider.set_value_programmatically(value)
@@ -102,8 +92,6 @@ class ControlPanelWidget(QWidget):
                         value_label.setText(display_value)
                         line_edit.setText(display_value)
                         
-                        print(f"Final value in slider: {slider.get_float_value()}")
-                        print(f"Final value in text box: {line_edit.text()}")
 
     def _update_internal_lists(self):
         """
@@ -909,6 +897,8 @@ class ControlPanelWidget(QWidget):
         self.live_config.stable_y_thres = self.smoothing[1]
         self.live_config.detect_people = self.detection_type[0]
         self.live_config.detect_objects = self.detection_type[1]
+
+        self.update_from_live_config()
 
     def update_value(self, index, target_list, value, step):
         """
