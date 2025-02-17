@@ -86,11 +86,12 @@ class FullScreenBlinkApp(QWidget):
 
         self.update_skip_count = 0 
 
-        # self.showFullScreen()
-        # self.activateWindow()  # Make this window the active window
-        # self.setFocus(Qt.OtherFocusReason)  # Give this window keyboard focus
-        # self.setWindowState(self.windowState() | ~Qt.WindowMinimized | Qt.WindowActive)  # Bring window to front
-        # self.raise_()
+        # def run_subprocess():
+        #     subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\Documents\\BinocularTension\\be')
+        # # Start the subprocess in a separate thread
+        # subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
+        # subprocess_thread.start()
+
         
 
         # Cheating way of activating all of the config settings which currently only activate at 
