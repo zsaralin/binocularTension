@@ -13,13 +13,13 @@
     "min_jitter_speed": 500.0,
     "max_jitter_speed": 800.0,
     "display_off_timeout": 2.0,
-    "stretch_x": 1.2,
+    "stretch_x": 1.0,
     "stretch_y": 1.0,
-    "smooth_y": 10.0,
+    "smooth_y": 25.0,
     "rotate": 0.0,
     "nervousness": 0.8,
     "selected_folder": "brown",
     "auto_switch_enabled": true,
-    "auto_switch_interval_low": 0.1,
-    "auto_switch_interval_high": 0.2
+    "auto_switch_interval_low": 1.0,
+    "auto_switch_interval_high": 3.0
 }

@@ -759,17 +759,27 @@ class ControlPanelWidget(QWidget):
         
         people_check = QCheckBox("Detect Yolo Objects")
         people_check.setChecked(self.detection_type[0])
-        people_check.stateChanged.connect(
-            lambda state: setattr(self.live_config, 'detect_people', bool(state))
-        )
+        people_check.stateChanged.connect(lambda state: self._update_checkbox(state, 0))
+
         layout.addWidget(people_check)
         
         objects_check = QCheckBox("Detect Other Objects")
         objects_check.setChecked(self.detection_type[1])
-        objects_check.stateChanged.connect(
-            lambda state: setattr(self.live_config, 'detect_objects', bool(state))
-        )
+        objects_check.stateChanged.connect(lambda state: self._update_checkbox(state, 1))
+
         layout.addWidget(objects_check)
+
+    def _update_checkbox(self, state, index):
+        """
+        Handle checkbox state changes.
+
+        @param state: The new state of the checkbox (Qt.Checked or Qt.Unchecked)
+        @param index: 0 for "Detect Yolo Objects", 1 for "Detect Other Objects"
+        """
+        value = bool(state)  # Convert Qt.Checked (2) / Qt.Unchecked (0) to True/False
+        self.detection_type[index] = value
+        self.live_config.detect_people = self.detection_type[0]
+        self.live_config.detect_objects = self.detection_type[1]
 
     def _add_action_buttons(self, layout):
         """Add action buttons to the layout."""

@@ -33,8 +33,8 @@ class SleepManager(QObject):
         self.random_wakeup_timer.timeout.connect(self.random_wakeup.random_wakeup)
 
         self.display_off_timer = QTimer(self)
-        # self.display_off_timer.setSingleShot(True)
-        # self.display_off_timer.timeout.connect(self.turn_off_display_)
+        self.display_off_timer.setSingleShot(True)
+        self.display_off_timer.timeout.connect(self.turn_off_display_)
 
         self.schedule_sleep_timer()
 
@@ -84,7 +84,7 @@ class SleepManager(QObject):
         self.sleep_mode_entered.emit()
         self.display_sleep_images()
         self.schedule_random_wakeup_timer()
-        # self.start_display_off_timer()
+        self.start_display_off_timer()
 
     def display_sleep_images(self):
         half_closed_eye_filename = self.app_instance.current_filename[:-5] + "h.jpg"
@@ -107,9 +107,9 @@ class SleepManager(QObject):
         self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
-        # timeout_ms = self.display_off_timeout_hours * 3600 * 1000
-        # self.display_off_timer.start(timeout_ms)
-        # self.display_off_timer.start(int(timeout_ms))
+        timeout_ms = self.display_off_timeout_hours * 3600 * 1000
+        self.display_off_timer.start(timeout_ms)
+        self.display_off_timer.start(int(timeout_ms))
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 
     def turn_off_display_(self):
