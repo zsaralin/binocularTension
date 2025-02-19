@@ -2,15 +2,16 @@ import sys
 import os
 import socket
 import threading
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QMessageBox
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
+from PyQt5.QtCore import QSettings
 
 from display_control_panel import DisplayControlPanelWidget
 from display_live_config import DisplayLiveConfig
 from debug_mode import DebugModeManager
 from blink_sleep_manager import BlinkSleepManager
-
+from backend_monitor import BackendMonitor
 import time
 import random
 import subprocess
@@ -86,13 +87,10 @@ class FullScreenBlinkApp(QWidget):
 
         self.update_skip_count = 0 
 
-        # def run_subprocess():
-        #     subprocess.run(['python', 'main.py'], cwd='C:\\Users\\admin\\Documents\\BinocularTension\\be')
-        # # Start the subprocess in a separate thread
-        # subprocess_thread = threading.Thread(target=run_subprocess, daemon=True)
-        # subprocess_thread.start()
 
-        
+        self.backend_monitor = BackendMonitor()
+        self.backend_monitor.error_signal.connect(self.show_error_overlay)
+ 
 
         # Cheating way of activating all of the config settings which currently only activate at 
         self.toggle_control_panel()
@@ -105,6 +103,21 @@ class FullScreenBlinkApp(QWidget):
         self.socket_service.start()
 
         self._bring_to_front()
+
+    def show_error_overlay(self, message):
+        """Display an error pop-up that requires clicking 'OK'."""
+        msg_box = QMessageBox(self)
+        msg_box.setIcon(QMessageBox.Critical)
+        msg_box.setText(message)
+        msg_box.setWindowTitle("Backend Error")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+
+        print(f"🔴 ERROR DISPLAYED: {message}")  # Debugging output
+
+        msg_box.exec_()  # Show the message box (blocks until "OK" is clicked)
+        sys.exit(0)  # Exit the program cleanly
+        # Hide the error message after 5 seconds
+        # QTimer.singleShot(5000, self.error_label.hide)
         
     def load_images(self):
         for folder_key, folder_path in self.image_folders.items():
@@ -235,6 +248,10 @@ class FullScreenBlinkApp(QWidget):
         current_y = self.stabilized_y if self.stabilized_y else self.extract_y_from_filename(self.current_filename)
         new_y = self.extract_y_from_filename(filename)
 
+        if (new_x is not None and (new_x < self.live_config.left_cutoff_x or new_x > self.live_config.right_cutoff_x)) and new_y == 'd':
+            print(f"⚠️ Overriding y='d' to 's' because x={new_x} is out of range.")
+            new_y = 's'
+
         # print('new:', filename, 'old:', self.current_filename, 'is_new_movement:', is_new_movement)
         if is_new_movement or new_y == 's':
             print("🔹 New movement detected! Immediately updating.")
@@ -258,7 +275,7 @@ class FullScreenBlinkApp(QWidget):
             return
         if current_x is not None and new_x is not None and not self.update_in_progress:
             delta = abs(new_x - current_x)
-            if delta > 10:
+            if delta > self.live_config.forced_blink_x_thres:
                 self.update_in_progress = True
 
                 print("🔹 Large movement detected! Using new Y without stabilization.")
@@ -269,17 +286,18 @@ class FullScreenBlinkApp(QWidget):
             if filename == self.current_filename:
                 return
 
-            if delta > 10 or (current_y in ['u', 's'] and self.stabilized_y == 'd') or (current_y == 'd' and self.stabilized_y in ['u', 's']):
+            if delta > self.live_config.forced_blink_x_thres or (current_y in ['u', 's'] and self.stabilized_y == 'd') or (current_y == 'd' and self.stabilized_y in ['u', 's']):
                 self.blink_sleep_manager.jitter_manager.stop_all_jitter()
                 self.update_in_progress = True
 
                 if random.random() < 1:
                     print("Simulating blink with position change." , filename)
                     try:
-                        self.current_filename = filename  # Ensure it's updated before blinking
                         self.blink_sleep_manager.jitter_manager.stop_all_jitter()
 
                         self.blink_sleep_manager.blink_manager.simulate_blink(new_filename=filename)
+                        self.current_filename = filename  # Ensure it's updated before blinking
+
                         blink_speed = self.live_config.blink_speed  # Higher is faster
                         base_delay = 800  # Base delay in ms for the slowest speed
                         total_blink_duration = int((base_delay / blink_speed) * 5)  # 5 steps in simulate_blink
@@ -374,6 +392,7 @@ class FullScreenBlinkApp(QWidget):
         if key == Qt.Key_U:
             self.toggle_version_panel()
         elif key == Qt.Key_Escape:
+            self.backend_monitor.force_close_backend()
             sys.exit()
             # self.close()
         elif key == Qt.Key_Left:
@@ -407,12 +426,14 @@ class FullScreenBlinkApp(QWidget):
             self.version_panel = VersionControlPanel(self, self.version_selector)
             self.version_panel.show()
             self.setCursor(Qt.ArrowCursor)
+        elif not self.version_panel.isVisible():
+            # Show panel again if it's hidden
+            self.version_panel.show()
+            self.setCursor(Qt.ArrowCursor)
         else:
-            # Close existing panel
-            if self.version_panel.isVisible():
-                self.version_panel.close()
-                self.version_panel = None
-                self.setCursor(Qt.BlankCursor)
+            # Hide panel instead of destroying it
+            self.version_panel.hide()
+            self.setCursor(Qt.BlankCursor)
 
     def toggle_settings_panel(self):
         """Toggle settings panel triggered by 'g' key."""
@@ -546,14 +567,22 @@ class FullScreenBlinkApp(QWidget):
 
             
 
+def reset_version_selection():
+    """Clear the saved version selection when the full app starts."""
+    settings = QSettings("MyApp", "VersionControlPanel")  # Use the same identifier as in apply_preset
+    settings.remove("last_selected_preset")  # Remove the stored preset
+    settings.sync()  # Force saving changes
+
+
 if __name__ == "__main__":
+    reset_version_selection()  # Call this at the beginning of the program
+
     app = QApplication(sys.argv)
     image_folders = ["./eyeballImages/Brown", "./eyeballImages/Blue"]
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    # Initialize and start the PyQt application
     window = FullScreenBlinkApp(image_folders)
     window.start_server_thread('localhost', 65432)
 

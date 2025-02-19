@@ -130,7 +130,6 @@ class FrontendControlsTab(QWidget):
         self.layout = QVBoxLayout(content_widget)
         
         # Add all the slider groups
-        self.add_nervousness_section()
         self.add_blink_section()
         self.add_jitter_section()
         self.add_sleep_section()
@@ -163,13 +162,6 @@ class FrontendControlsTab(QWidget):
         label.setStyleSheet("font-weight: bold;")
         self.layout.addWidget(label)
 
-    def add_nervousness_section(self):
-        """Add nervousness control section."""
-        self.add_section_header("Nervousness")
-        self.add_slider_group(
-            "nervousness", "Nervousness", 0.8, 0.0, 1.0, 0.1
-        )
-
     def add_blink_section(self):
         """Add blink settings section."""
         self.add_section_header("Blink Settings")
@@ -183,6 +175,10 @@ class FrontendControlsTab(QWidget):
             1.0, 20.0, 0.1
         )
         self.add_slider_group(
+            "forced_blink_x_thres", "Forced Blink X Thres", 10.0,
+            1.0, 35.0, 1
+        )
+        self.add_slider_group(
             "blink_speed", "Blink Speed", 5.0,
             1.0, 10.0, 1.0
         )
@@ -190,7 +186,9 @@ class FrontendControlsTab(QWidget):
     def add_jitter_section(self):
         """Add jitter settings section."""
         self.add_section_header("Jitter Settings")
-        
+        self.add_slider_group(
+            "nervousness", "Nervousness", 0.8, 0.0, 1.0, 0.1
+        )
         # Basic jitter controls
         self.add_slider_group(
             "jitter_start_delay", "Initial Delay (s)", 0.5,

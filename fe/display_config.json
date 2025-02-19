@@ -3,7 +3,7 @@
     "max_blink_interval": 8.0,
     "min_sleep_timeout": 10.0,
     "max_sleep_timeout": 12.0,
-    "min_random_wakeup": 35.0,
+    "forced_blink_x_thres": 10.0,
     "max_random_wakeup": 65.0,
     "blink_speed": 5.0,
     "jitter_start_delay": 0.5,
@@ -19,7 +19,9 @@
     "rotate": 0.0,
     "nervousness": 0.8,
     "selected_folder": "brown",
-    "auto_switch_enabled": true,
-    "auto_switch_interval_low": 1.0,
-    "auto_switch_interval_high": 3.0
+    "auto_switch_enabled": false,
+    "auto_switch_interval_low": 0.8,
+    "auto_switch_interval_high": 5.0,
+    "left_cutoff_x": 5,
+    "right_cutoff_x": 35
 }

@@ -91,8 +91,15 @@ def find_x_divider_index(point, center_x=0):
         if divider_angles[i] <= angle_to_point < divider_angles[i + 1]:
             gap_index = i
             break
-    else:
-        gap_index = len(divider_angles) - 2
+        else:
+            # If angle is lower than first divider, assign 0
+            if angle_to_point < divider_angles[0]:
+                gap_index = 0
+            # If angle is greater than last divider, assign 39
+            elif angle_to_point >= divider_angles[-1]:
+                gap_index = num_divisions - 1  # 39
+            else:
+                gap_index = len(divider_angles) - 2 
 
     fill_divider(gap_index, height=2.0, depth=30.0, center_x=center_x)
     return gap_index

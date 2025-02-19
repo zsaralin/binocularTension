@@ -9,7 +9,6 @@
     "max_blink_interval": 6,
     "min_sleep_timeout": 10,
     "max_sleep_timeout": 12,
-    "auto_switch_interval_low": 0.1,
-    "auto_switch_interval_high": 0.2
+    "jitter_start_delay": 0
   }
 }

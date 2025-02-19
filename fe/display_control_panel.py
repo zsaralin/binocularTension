@@ -47,8 +47,9 @@ class DisplayControlPanelWidget(QWidget):
         # 4. Initialize internal values from config (store in single‐element lists for easy slider usage)
         self.min_blink_interval = [self.config.get("min_blink_interval", 3)]
         self.max_blink_interval = [self.config.get("max_blink_interval", 8)]
-        self.min_sleep_timeout = [self.config.get("min_sleep_timeout", 60)]
+        self.min_sleep_timeout = [self.config.get("min_sleep_timeout", 60)]    
         self.max_sleep_timeout = [self.config.get("max_sleep_timeout", 180)]
+        self.forced_blink_x_thres = [self.config.get("forced_blink_x_thres", 10)]
         self.min_random_wakeup = [self.config.get("min_random_wakeup", 30)]
         self.max_random_wakeup = [self.config.get("max_random_wakeup", 60)]
         self.blink_speed = [self.config.get("blink_speed", 5)]
@@ -64,6 +65,8 @@ class DisplayControlPanelWidget(QWidget):
         self.smooth_y = [self.config.get("smooth_y", 10)]
         self.rotate = [self.config.get("rotate", 0)]
         self.nervousness = [self.config.get("nervousness", 0.8)]
+        self.left_cutoff_x = [self.config.get("left_cutoff_x", 5)]
+        self.right_cutoff_x = [self.config.get("right_cutoff_x", 34)]
 
         # For debug mode + checkboxes
         self.checkbox_states = {
@@ -102,6 +105,7 @@ class DisplayControlPanelWidget(QWidget):
                 "max_blink_interval": 8,
                 "min_sleep_timeout": 60,
                 "max_sleep_timeout": 180,
+                "forced_blink_x_thres" : 10,
                 "min_random_wakeup": 30,
                 "max_random_wakeup": 60,
                 "blink_speed": 5,
@@ -120,7 +124,9 @@ class DisplayControlPanelWidget(QWidget):
                 "selected_folder": "brown",
                 "auto_switch_enabled": False,
                 "auto_switch_interval_low": 0.5,
-                "auto_switch_interval_high": 0.5
+                "auto_switch_interval_high": 0.5,
+                "left_cutoff_x" : 5,
+                "right_cutoff_x" : 34
             }
 
 
@@ -132,7 +138,8 @@ class DisplayControlPanelWidget(QWidget):
         config_data["max_blink_interval"] = self.sliders["max_blink_interval"].current_value()
         config_data["min_sleep_timeout"] = self.sliders["min_sleep_timeout"].current_value()
         config_data["max_sleep_timeout"] = self.sliders["max_sleep_timeout"].current_value()
-        config_data["min_random_wakeup"] = self.sliders["min_random_wakeup"].current_value()
+        config_data["max_sleep_timeout"] = self.sliders["max_sleep_timeout"].current_value()
+        config_data["forced_blink_x_thres"] = self.sliders["forced_blink_x_thres"].current_value()
         config_data["max_random_wakeup"] = self.sliders["max_random_wakeup"].current_value()
         config_data["blink_speed"] = self.sliders["blink_speed"].current_value()
         config_data["jitter_start_delay"] = self.sliders["jitter_start_delay"].current_value()
@@ -147,6 +154,9 @@ class DisplayControlPanelWidget(QWidget):
         config_data["smooth_y"] = self.sliders["smooth_y"].current_value()
         config_data["rotate"] = self.sliders["rotate"].current_value()
         config_data["nervousness"] = self.sliders["nervousness"].current_value()
+        config_data["left_cutoff_x"] = self.sliders["left_cutoff_x"].current_value()
+        config_data["right_cutoff_x"] = self.sliders["right_cutoff_x"].current_value()
+
         config_data.update(version_info)
         """Save current settings to config file."""
         # config_data = {
@@ -267,7 +277,16 @@ class DisplayControlPanelWidget(QWidget):
             max_val=300,
             step=1
         )
-        
+
+        self.create_slider_group(
+            layout=main_layout,
+            setting_name="forced_blink_x_thres",
+            label_text="Forced Blink X Thres",
+            initial_value=self.forced_blink_x_thres[0],
+            min_val=1,
+            max_val=35,
+            step=1
+        )
         self.create_slider_group(
             layout=main_layout,
             setting_name="min_random_wakeup",
@@ -418,7 +437,25 @@ class DisplayControlPanelWidget(QWidget):
             max_val=1,
             step=0.1
         )
+        self.create_slider_group(
+            layout=main_layout,
+            setting_name="left_cutoff_x",
+            label_text="Left Cutoff X",
+            initial_value=self.left_cutoff_x[0],
+            min_val=0,
+            max_val=39,
+            step=1
+        )
 
+        self.create_slider_group(
+            layout=main_layout,
+            setting_name="left_cutoff_x",
+            label_text="Right Cutoff X",
+            initial_value=self.right_cutoff_x[0],
+            min_val=0,
+            max_val=39,
+            step=1
+        )
         #
         # 3) Debug mode + advanced checkboxes
         #
@@ -524,6 +561,7 @@ class DisplayControlPanelWidget(QWidget):
                 'max_blink_interval': self.max_blink_interval,
                 'min_sleep_timeout': self.min_sleep_timeout,
                 'max_sleep_timeout': self.max_sleep_timeout,
+                "forced_blink_x_thres" : self.forced_blink_x_thres,
                 'min_random_wakeup': self.min_random_wakeup,
                 'max_random_wakeup': self.max_random_wakeup,
                 'blink_speed': self.blink_speed,
@@ -538,7 +576,9 @@ class DisplayControlPanelWidget(QWidget):
                 'stretch_y': self.stretch_y,
                 'smooth_y': self.smooth_y,
                 'rotate': self.rotate,
-                'nervousness': self.nervousness
+                'nervousness': self.nervousness,
+                'left_cutoff_x': self.left_cutoff_x,
+                'right_cutoff_x' : self.right_cutoff_x
             }
 
             for setting_name, target_list in settings_map.items():
@@ -675,6 +715,9 @@ class DisplayControlPanelWidget(QWidget):
         elif target_list is self.max_sleep_timeout:
             self.live_config.max_sleep_timeout = value
             self.max_sleep_timeout_changed.emit(int(value))
+        elif target_list is self.forced_blink_x_thres:
+            self.live_config.forced_blink_x_thres = value
+            self.max_sleep_timeout_changed.emit(int(value))
         elif target_list is self.min_random_wakeup:
             self.live_config.min_random_wakeup = value
             self.min_random_wakeup_changed.emit(int(value))
@@ -708,7 +751,10 @@ class DisplayControlPanelWidget(QWidget):
             self.live_config.rotate = value
         elif target_list is self.nervousness:
             self.live_config.nervousness = value
-
+        elif target_list is self.left_cutoff_x:
+            self.live_config.left_cutoff_x = value
+        elif target_list is self.right_cutoff_x:
+            self.live_config.right_cutoff_x = value
     # --------------------------------------------------------------------------
     #                        SYNCHRONIZE LIVE CONFIG
     # --------------------------------------------------------------------------
@@ -722,6 +768,7 @@ class DisplayControlPanelWidget(QWidget):
         self.live_config.max_blink_interval = self.max_blink_interval[0]
         self.live_config.min_sleep_timeout = self.min_sleep_timeout[0]
         self.live_config.max_sleep_timeout = self.max_sleep_timeout[0]
+        self.live_config.forced_blink_x_thres = self.forced_blink_x_thres[0]
         self.live_config.min_random_wakeup = self.min_random_wakeup[0]
         self.live_config.max_random_wakeup = self.max_random_wakeup[0]
         self.live_config.blink_speed = self.blink_speed[0]
@@ -737,6 +784,8 @@ class DisplayControlPanelWidget(QWidget):
         self.live_config.smooth_y = self.smooth_y[0]
         self.live_config.rotate = self.rotate[0]
         self.live_config.nervousness = self.nervousness[0]
+        self.live_config.left_cutoff_x = self.left_cutoff_x[0]
+        self.live_config.right_cutoff_x = self.right_cutoff_x[0]
 
     # --------------------------------------------------------------------------
     #                        DEBUG MODE / ADVANCED CHECKBOXES

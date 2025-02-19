@@ -9,6 +9,7 @@ class DisplayLiveConfig:
         self.config_file = "display_config.json"
         self.min_sleep_timeout = 30          # Default in mins
         self.max_sleep_timeout = 180         # Default in mins
+        self.forced_blink_x_thres = 10
         self.min_random_wakeup = 30          # Default in mins
         self.max_random_wakeup = 180         # Default in mins
         self.min_blink_interval = 3          # Default minimum blink interval in seconds
@@ -26,6 +27,8 @@ class DisplayLiveConfig:
         self.max_jitter_interval = 6         # Default maximum jitter interval (seconds)
         self.min_jitter_speed = 1            # Default minimum jitter speed (range: 1 - 10)
         self.max_jitter_speed = 10           # Default maximum jitter speed (range: 1 - 10)
+        self.left_cutoff_x = 5
+        self.right_cutoff_x = 34
         self.load_config()
 
     @classmethod
@@ -41,6 +44,7 @@ class DisplayLiveConfig:
                 config_data = json.load(file)
                 self.min_sleep_timeout = config_data.get("min_sleep_timeout", self.min_sleep_timeout)
                 self.max_sleep_timeout = config_data.get("max_sleep_timeout", self.max_sleep_timeout)
+                self.forced_blink_x_thres = config_data.get("forced_blink_x_thres", self.forced_blink_x_thres)
                 self.min_random_wakeup = config_data.get("min_random_wakeup", self.min_random_wakeup)
                 self.max_random_wakeup = config_data.get("max_random_wakeup", self.max_random_wakeup)
                 self.min_blink_interval = config_data.get("min_blink_interval", self.min_blink_interval)
@@ -59,12 +63,15 @@ class DisplayLiveConfig:
                 self.max_jitter_interval = config_data.get("max_jitter_interval", self.max_jitter_interval)
                 self.min_jitter_speed = config_data.get("min_jitter_speed", self.min_jitter_speed)
                 self.max_jitter_speed = config_data.get("max_jitter_speed", self.max_jitter_speed)
+                self.left_cutoff_x = config_data.get("left_cutoff_x", self.left_cutoff_x)
+                self.right_cutoff_x = config_data.get("right_cutoff_x", self.right_cutoff_x)
 
     def save_config(self):
         """Save the current configuration to the file."""
         config_data = {
             "min_sleep_timeout": self.min_sleep_timeout,
             "max_sleep_timeout": self.max_sleep_timeout,
+            "forced_blink_x_thres": self.forced_blink_x_thres,
             "min_random_wakeup": self.min_random_wakeup,
             "max_random_wakeup": self.max_random_wakeup,
             "min_blink_interval": self.min_blink_interval,
@@ -82,6 +89,8 @@ class DisplayLiveConfig:
             "max_jitter_interval": self.max_jitter_interval,
             "min_jitter_speed": self.min_jitter_speed,
             "max_jitter_speed": self.max_jitter_speed,
+            "left_cutoff_x" : self.left_cutoff_x,
+            "right_cutoff_x" : self.right_cutoff_x,
         }
 
         # Try to preserve existing version selector settings
@@ -104,17 +113,19 @@ class DisplayLiveConfig:
         except Exception as e:
             print(f"Error saving configuration: {e}")
 
-    def update_duration(self, min_sleep_timeout=None, max_sleep_timeout=None, min_blink_interval=None,
+    def update_duration(self, min_sleep_timeout=None, max_sleep_timeout=None, forced_blink_x_thres = None, min_blink_interval=None,
                         max_blink_interval=None, min_random_wakeup=None, max_random_wakeup=None,
                         display_off_timeout=None, nervousness=None, blink_speed=None,
                         jitter_start_delay=None, large_jitter_start_delay=None,
                         min_jitter_interval=None, max_jitter_interval=None,
-                        min_jitter_speed=None, max_jitter_speed=None):
+                        min_jitter_speed=None, max_jitter_speed=None, left_cutoff_x = None, right_cutoff_x = None):
         """Update the durations and save to config."""
         if min_sleep_timeout is not None:
             self.min_sleep_timeout = min_sleep_timeout
         if max_sleep_timeout is not None:
             self.max_sleep_timeout = max_sleep_timeout
+        if forced_blink_x_thres is not None:
+            self.forced_blink_x_thres = forced_blink_x_thres
         if min_blink_interval is not None:
             self.min_blink_interval = min_blink_interval
         if max_blink_interval is not None:
@@ -141,4 +152,8 @@ class DisplayLiveConfig:
             self.min_jitter_speed = min_jitter_speed
         if max_jitter_speed is not None:
             self.max_jitter_speed = max_jitter_speed
+        if left_cutoff_x is not None:
+            self.left_cutoff_x = left_cutoff_x
+        if right_cutoff_x is not None:
+            self.right_cutoff_x = right_cutoff_x
         self.save_config()

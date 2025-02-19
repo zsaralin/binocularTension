@@ -2,7 +2,7 @@ import sys
 import math
 import numpy as np
 import pyrealsense2 as rs
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSplitter, QLabel, QDesktopWidget, QSizePolicy, QPushButton, QGroupBox, QVBoxLayout, QHBoxLayout, QWidget, QHBoxLayout, QSpacerItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSplitter, QLabel, QDesktopWidget, QSizePolicy, QPushButton, QGroupBox, QVBoxLayout, QHBoxLayout, QWidget, QHBoxLayout, QSpacerItem, QMessageBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QSurfaceFormat
 from pointcloud import GLWidget  # Assuming you have this in 'pointcloud.py'
@@ -24,8 +24,16 @@ class MainWindow(QMainWindow):
         self.rgb_ratio = 848 / 480         # RGB widget aspect ratio
         self.pointcloud_ratio = 848 / 480  # Point cloud widget aspect ratio
 
-        # Create an instance of the RealSenseManager to share between widgets
         self.rs_manager = RealSenseManager()
+
+        if not self.rs_manager.initialized:
+            print('no camera detected')
+            sys.exit(0)  # Exit the program cleanly
+
+        # Connect signal only if initialization was successful
+        self.rs_manager.camera_disconnected.connect(self.handle_camera_disconnection)
+
+
 
         # Create the splitter
         splitter = QSplitter(Qt.Horizontal)  # Horizontal splitter for side-by-side layout
@@ -154,7 +162,15 @@ class MainWindow(QMainWindow):
         self.center_window()
         self.lower()
         self.show()
-        
+
+    def handle_camera_disconnection(self):
+        QApplication.instance().quit()  # Close the application
+
+
+    def force_close(self):
+        """Forcefully close the application."""
+        print("Force closing the application...")
+        QApplication.quit()
 
     def center_window(self):
         """Center the main window on the screen."""

@@ -60,38 +60,34 @@ class ControlPanelWidget(QWidget):
 
     def update_from_live_config(self):
         """Update UI elements from LiveConfig while preventing feedback loops."""
-        
+
         # First update internal lists from LiveConfig
         self._update_internal_lists()
-        
+
         # Update all slider groups using programmatic updates
         for hbox in self.findChildren(QHBoxLayout):
             widgets = [hbox.itemAt(i).widget() for i in range(hbox.count()) if hbox.itemAt(i)]
-            
+
             if len(widgets) == 4:  # Label + Slider + ValueLabel + LineEdit
                 label, slider, value_label, line_edit = widgets
                 if isinstance(slider, EnhancedSlider):
                     label_text = label.text()
                     value = self._get_value_from_label(label_text)
-                    
+
                     if value is not None:
                         step = self._get_step_for_label(label_text)
-                        
+
                         # Determine appropriate decimal places based on step size
-                        if step < 1:
-                            decimals = 1 if step == 0.1 else 2 if step == 0.01 else 3
-                        else:
-                            decimals = 0
-                        
+                        decimals = 1 if step == 0.1 else 2 if step == 0.01 else 3 if step < 1 else 0
                         display_value = f"{value:.{decimals}f}"
-                        
-                        # Update slider using float value
-                        slider.set_value_programmatically(value)
-                        
+
+                        # Prevent feedback loops by blocking signals
+                        slider.setValue(value)
+
                         # Update displays with properly formatted value
                         value_label.setText(display_value)
                         line_edit.setText(display_value)
-                        
+
 
     def _update_internal_lists(self):
         """
@@ -563,11 +559,11 @@ class ControlPanelWidget(QWidget):
 
         # Main controls tab
         main_tab = self._create_main_controls_tab()
-        tab_widget.addTab(main_tab, "Backend Controls")
 
         # Frontend controls tab
         frontend_tab = FrontendControlsTab(preset_listener=self.preset_listener)
         tab_widget.addTab(frontend_tab, "Frontend Controls")
+        tab_widget.addTab(main_tab, "Backend Controls")
 
         main_layout.addWidget(tab_widget)
         self.setLayout(main_layout)
@@ -602,7 +598,7 @@ class ControlPanelWidget(QWidget):
     def _add_rotation_controls(self, layout):
         """Add rotation controls to the layout."""
         self._add_section_header(layout, "Rotation")
-        self._create_slider_group(layout, "Rot X", 0, -180, 180, self.rotation, 0)
+        self._create_slider_group(layout, "Rot X", 0, -180, 180, self.rotation, 0, 1)
         self._create_slider_group(layout, "Rot Y", 1, -180, 180, self.rotation, 1)
         self._create_slider_group(layout, "Rot Z", 2, -180, 180, self.rotation, 2)
 
@@ -642,9 +638,9 @@ class ControlPanelWidget(QWidget):
         # Calculate slider positions (scaled by step size)
         scale_factor = int(1 / step) if step < 1 else 1
         slider.setRange(int(min_val * scale_factor), int(max_val * scale_factor))
-        
         current_value = target_list[list_index]
-        slider.setValue(int(current_value * scale_factor))
+
+        slider.setValue(current_value)
         
         # Determine decimal places based on step size
         decimals = 1 if step == 0.1 else 2 if step == 0.01 else 0
@@ -708,7 +704,7 @@ class ControlPanelWidget(QWidget):
         self._create_slider_group(layout, "X Max", 1, -15, 15, self.thresholds, 1, 0.1)
         self._create_slider_group(layout, "Y Min", 2, -10, 50, self.thresholds, 2, 0.1)
         self._create_slider_group(layout, "Y Max", 3, -10, 50, self.thresholds, 3, 0.1)
-        self._create_slider_group(layout, "Z Min", 4, -15, 0, self.thresholds, 4, 0.1)
+        self._create_slider_group(layout, "Z Min", 4, -30, 0, self.thresholds, 4, 0.1)
         self._create_slider_group(layout, "Z Max", 5, -10, 0, self.thresholds, 5, 0.1)
 
     def _add_divider_controls(self, layout):
@@ -908,7 +904,7 @@ class ControlPanelWidget(QWidget):
         self.live_config.detect_people = self.detection_type[0]
         self.live_config.detect_objects = self.detection_type[1]
 
-        self.update_from_live_config()
+        # self.update_from_live_config()
 
     def update_value(self, index, target_list, value, step):
         """
