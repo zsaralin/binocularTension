@@ -134,6 +134,7 @@ class FrontendControlsTab(QWidget):
         self.add_jitter_section()
         self.add_sleep_section()
         self.add_display_section()
+        self.add_y_movement_section()
 
         # Add save button with feedback
         save_layout = QHBoxLayout()
@@ -253,13 +254,26 @@ class FrontendControlsTab(QWidget):
             1.0, 1.5, 0.01
         )
         self.add_slider_group(
+            "rotate", "Rotation (degrees)", 0.0,
+            -5.0, 5.0, 0.1
+        )
+
+    def add_y_movement_section(self):
+        """Add display settings section."""
+        self.add_section_header("Y Movement Settings")
+        self.add_slider_group(
             "smooth_y", "Y-Movement Smoothing", 10.0,
             0.0, 100.0, 1.0
         )
         self.add_slider_group(
-            "rotate", "Rotation (degrees)", 0.0,
-            -5.0, 5.0, 0.1
+            "left_cutoff_x", "Left Cutoff X", 5.0,
+            0.0, 39.0, 1
         )
+        self.add_slider_group(
+            "right_cutoff_x", "Right Cutoff X", 34.0,
+            0.0, 39.0, 1
+        )
+
 
 
     def add_slider_group(self, variable_name, label_text,

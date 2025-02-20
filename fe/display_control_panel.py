@@ -449,7 +449,7 @@ class DisplayControlPanelWidget(QWidget):
 
         self.create_slider_group(
             layout=main_layout,
-            setting_name="left_cutoff_x",
+            setting_name="right_cutoff_x",
             label_text="Right Cutoff X",
             initial_value=self.right_cutoff_x[0],
             min_val=0,
