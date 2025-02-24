@@ -10,7 +10,7 @@ from live_config import LiveConfig  # Import LiveConfig for dynamic configuratio
 logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
 class ObjectDetector:
-    def __init__(self, model_path="./yolo/yolo11n.pt", distance_threshold=100):
+    def __init__(self, model_path="./yolo/yolo12n.pt", distance_threshold=100):
         # Initialize YOLO model
         self.model = YOLO(model_path)
         self.live_config = LiveConfig.get_instance()
