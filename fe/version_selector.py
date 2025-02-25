@@ -54,8 +54,8 @@ class VersionSelector:
         version_layout = QHBoxLayout()
 
         # Create and configure radio buttons
-        self.female_radio = QRadioButton("Blue (Left Arrow)")
-        self.male_radio = QRadioButton("Brown (Right Arrow)")
+        self.female_radio = QRadioButton("Brown (Left Arrow)")
+        self.male_radio = QRadioButton("Blue (Right Arrow)")
         self.switch_radio = QRadioButton("Auto Switch (Up or Down Arrow)")
 
         self.load_config()
@@ -187,6 +187,14 @@ class VersionSelector:
         @param folder_name: The name of the folder to switch to.
         @type folder_name: str
         """
+        if folder_name is "auto":
+            self.switch_radio.setChecked(True)
+            return
+        if self.female_radio and folder_name is "brown":
+            self.female_radio.setChecked(True)
+        elif self.male_radio and folder_name is "blue":
+            self.male_radio.setChecked(True)
+        
         self.current_folder = folder_name
         self.main_display.switch_image_folder(folder_name)
         self.save_config()

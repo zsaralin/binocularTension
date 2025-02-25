@@ -443,7 +443,7 @@ class DisplayControlPanelWidget(QWidget):
             label_text="Left Cutoff X",
             initial_value=self.left_cutoff_x[0],
             min_val=0,
-            max_val=39,
+            max_val=40,
             step=1
         )
 
@@ -453,7 +453,7 @@ class DisplayControlPanelWidget(QWidget):
             label_text="Right Cutoff X",
             initial_value=self.right_cutoff_x[0],
             min_val=0,
-            max_val=39,
+            max_val=40,
             step=1
         )
         #

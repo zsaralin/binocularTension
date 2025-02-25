@@ -28,7 +28,7 @@ class DisplayLiveConfig:
         self.min_jitter_speed = 1            # Default minimum jitter speed (range: 1 - 10)
         self.max_jitter_speed = 10           # Default maximum jitter speed (range: 1 - 10)
         self.left_cutoff_x = 5
-        self.right_cutoff_x = 34
+        self.right_cutoff_x = 35
         self.load_config()
 
     @classmethod

@@ -2,7 +2,6 @@ import random
 import time
 import os
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
-from turnoff_display import turn_off_display, turn_on_display
 from random_wakeup import RandomWakeupManager
 from display_controller import get_display_controller
 
@@ -107,24 +106,22 @@ class SleepManager(QObject):
         self.sleep_mode_exited.emit()
 
     def start_display_off_timer(self):
-        timeout_ms = self.display_off_timeout_hours * 3600 * 1000
-        self.display_off_timer.start(timeout_ms)
-        self.display_off_timer.start(int(timeout_ms))
+        timeout_ms = self.display_off_timeout_hours * 3600 * 1000  # Convert hours to milliseconds
+        self.display_off_timer.start(timeout_ms) 
         print(f"Display off timer started for {self.display_off_timeout_hours} hours.")
 
     def turn_off_display_(self):
-        if not self.display_off:
-            print("Turning off display...")
-            self.sleep_timer.stop()
-            self.random_wakeup_timer.stop()
-            self.display_off = True
-            turn_off_display()
+        # if not self.display_off:
+        print("Turning off display...")
+        self.sleep_timer.stop()
+        self.random_wakeup_timer.stop()
+        self.display_off = True
+        self.app_instance.display_black_image()
 
     def turn_on_display_(self):
         print("Turning on display...")
         self.display_off_timer.stop()  # Stop the display off timer
         self.sleep_timer.stop()       # Stop the sleep timer
-        turn_on_display()
         self.display_off = False
         self.exit_sleep_mode()
 

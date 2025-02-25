@@ -101,8 +101,10 @@ class FullScreenBlinkApp(QWidget):
         self.socket_service = SocketListenerService()
         self.socket_service.value_received.connect(self.handle_frontend_update)
         self.socket_service.start()
+        self.setCursor(Qt.BlankCursor)
 
         self._bring_to_front()
+
 
     def show_error_overlay(self, message):
         """Display an error pop-up that requires clicking 'OK'."""
@@ -396,16 +398,17 @@ class FullScreenBlinkApp(QWidget):
             sys.exit()
             # self.close()
         elif key == Qt.Key_Left:
-            self.switch_image_folder("blue")
-            if self.version_selector:
-                self.version_selector.switch_folder("blue")
-                self.version_selector.stop_auto_switch()
-        elif key == Qt.Key_Right:
             self.switch_image_folder("brown")
             if self.version_selector:
                 self.version_selector.switch_folder("brown")
                 self.version_selector.stop_auto_switch()
+        elif key == Qt.Key_Right:
+            self.switch_image_folder("blue")
+            if self.version_selector:
+                self.version_selector.switch_folder("blue")
+                self.version_selector.stop_auto_switch()
         elif key == Qt.Key_Down or key == Qt.Key_Up:
+            self.version_selector.switch_folder("auto")
             self.version_selector.handle_auto_switch(True)
         else:
             super().keyPressEvent(event)

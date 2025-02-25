@@ -1,4 +1,5 @@
-/fe/eyeballImages
+/fe/eyeballImages/Blue
+/fe/eyeballImages/Brown
 *.pyc
 */__pycache__/*
 */.ipynb_checkpoints/*

@@ -46,9 +46,13 @@ class VersionControlPanel(QWidget):
             if event.key() == Qt.Key_U:
                 self.main_display.keyPressEvent(event)
                 return True
-            elif event.key() in [Qt.Key_BracketLeft, Qt.Key_BracketRight]:
+            elif event.key() in [Qt.Key_Left, Qt.Key_Right]:
                 self.main_display.keyPressEvent(event)
                 return True
+            elif event.key() in [Qt.Key_Down,Qt.Key_Up]:
+                self.main_display.keyPressEvent(event)
+                return True
+
                 
         return super().eventFilter(obj, event)
 
